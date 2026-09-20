@@ -1,4 +1,5 @@
 ﻿using CMS_Backend.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -14,10 +15,40 @@ namespace CMS_Backend.Helpers
         // so we can log a "created" marker in SavedChangesAsync — by then
         // identity-generated primary keys have been populated by the DB.
         private readonly List<EntityEntry> _pendingAdded = new List<EntityEntry>();
+        // Tables that should never be audited
+        private static readonly HashSet<string> ExcludedTables = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "AspNetRoles",
+             "AspNetUserRoles",
+             "AspNetRoleClaims",
+             "AspNetUserClaims",
+             "AspNetUserLogins",
+             "AspNetUsers",
+        };
 
         public AuditSaveChangesInterceptor(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
+        }
+
+        private static bool ShouldAudit(EntityEntry e)
+        {
+            var type = e.Entity.GetType();
+
+            if (type == typeof(ApiDataChangeLog)
+                || type == typeof(RefreshToken)
+                || type == typeof(ApiActivityLog))
+                return false;
+
+            // Matches IdentityRole and any subclass (e.g. ApplicationRole)
+            if (e.Entity is IdentityRole)
+                return false;
+
+            // Or exclude by table name
+            if (ExcludedTables.Contains(e.Metadata.GetTableName() ?? string.Empty))
+                return false;
+
+            return true;
         }
 
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -36,9 +67,10 @@ namespace CMS_Backend.Helpers
             // are both already known before the update executes).
             var changeRows = entries
                 .Where(e => e.State == EntityState.Modified)
-                .Where(e => e.Entity.GetType() != typeof(ApiDataChangeLog)
-                            && e.Entity.GetType() != typeof(RefreshToken)
-                            && e.Entity.GetType() != typeof(ApiActivityLog))
+                .Where(ShouldAudit)
+                //.Where(e => e.Entity.GetType() != typeof(ApiDataChangeLog)
+                //            && e.Entity.GetType() != typeof(RefreshToken)
+                //            && e.Entity.GetType() != typeof(ApiActivityLog))
                 .SelectMany(e => EntityDiffHelper.GetChanges(e, logId))
                 .ToList();
 
@@ -53,9 +85,11 @@ namespace CMS_Backend.Helpers
            _pendingAdded.Clear();
            _pendingAdded.AddRange(entries.Where(e =>
                 e.State == EntityState.Added
-                && e.Entity.GetType() != typeof(ApiDataChangeLog)
-                && e.Entity.GetType() != typeof(RefreshToken)
-                && e.Entity.GetType() != typeof(ApiActivityLog)));
+                && ShouldAudit(e)
+                //&& e.Entity.GetType() != typeof(ApiDataChangeLog)
+                //&& e.Entity.GetType() != typeof(RefreshToken)
+                //&& e.Entity.GetType() != typeof(ApiActivityLog)
+                ));
 
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
         }

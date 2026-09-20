@@ -2,6 +2,7 @@ using CMS_Backend.Configuration;
 using CMS_Backend.Data;
 using CMS_Backend.Helpers;
 using CMS_Backend.Middleware;
+using CMS_Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -37,13 +38,24 @@ builder.Services.AddAuthentication(options => {
     jwt.SaveToken = true;
     jwt.TokenValidationParameters = tokenValidationParameters;
 });
+builder.Services.AddAuthorization(options => {
+    options.AddPolicy("DepartmentPolicy", 
+        policy => policy.RequireClaim("Department"));
+});
 
 
-builder.Services.AddIdentityCore<IdentityUser>(options =>
-        options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+        options.SignIn.RequireConfirmedAccount = true
+        ).AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
+builder.Services.AddScoped<IUserRoleService, UserRoleService>();
+builder.Services.AddScoped<IUserClaimService, UserClaimService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -55,7 +67,11 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-
+builder.Services.AddApiVersioning(opt =>
+{
+    opt.AssumeDefaultVersionWhenUnspecified = true;
+    opt.DefaultApiVersion = Microsoft.AspNetCore.Mvc.ApiVersion.Default; // new ApiVersion(1, 0); 
+});
 
 
 
