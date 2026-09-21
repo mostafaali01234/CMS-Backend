@@ -3,6 +3,7 @@ using CMS_Backend.Data;
 using CMS_Backend.Helpers;
 using CMS_Backend.Middleware;
 using CMS_Backend.Services;
+using CMS_Backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +21,8 @@ var tokenValidationParameters = new TokenValidationParameters
     IssuerSigningKey = new SymmetricSecurityKey(key),
     ValidateIssuer = false,
     ValidateAudience = false,
-    ValidateLifetime = true,
     RequireExpirationTime = false,
+    ValidateLifetime = true,
 
     // Allow to use seconds for expiration of token
     // Required only when token lifetime less than 5 minutes
@@ -54,6 +55,8 @@ builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IUserClaimService, UserClaimService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddCorrelationIdManager();
 
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
@@ -92,5 +95,7 @@ app.UseAuthorization();
 app.UseMiddleware<ApiActivityLogMiddleware>();
 
 app.MapControllers();
+
+app.AddCorrelationIdMiddleware();
 
 app.Run();

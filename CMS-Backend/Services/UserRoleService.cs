@@ -1,129 +1,119 @@
 ﻿using CMS_Backend.Models.DTOs.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using CMS_Backend.Services.Interfaces;
 
-namespace CMS_Backend.Services
+namespace CMS_Backend.Services;
+
+public class UserRoleService : IUserRoleService
 {
-    public interface IUserRoleService
+    private readonly UserManager<IdentityUser> _userManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly ILogger<UserRoleService> _logger;
+
+    public UserRoleService(
+        UserManager<IdentityUser> userManager,
+        RoleManager<IdentityRole> roleManager,
+        ILogger<UserRoleService> logger)
     {
-        Task<ServiceResult<List<RoleDto>>> GetRolesAsync(CancellationToken ct = default);
-        Task<ServiceResult<RoleDto>> CreateRoleAsync(string name);
-        Task<ServiceResult<List<UserDto>>> GetUsersAsync(CancellationToken ct = default);
-        Task<ServiceResult<IList<string>>> GetUserRolesAsync(string email);
-        Task<ServiceResult<string>> AddUserToRoleAsync(string email, string roleName);
-        Task<ServiceResult<string>> RemoveUserFromRoleAsync(string email, string roleName);
+        _userManager = userManager;
+        _roleManager = roleManager;
+        _logger = logger;
     }
 
-    public class UserRoleService : IUserRoleService
+    public async Task<ServiceResult<List<RoleDto>>> GetRolesAsync(CancellationToken ct = default)
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly ILogger<UserRoleService> _logger;
+        var roles = await _roleManager.Roles
+            .AsNoTracking()
+            .Select(r => new RoleDto(r.Id, r.Name))
+            .ToListAsync(ct);
 
-        public UserRoleService(
-            UserManager<IdentityUser> userManager,
-            RoleManager<IdentityRole> roleManager,
-            ILogger<UserRoleService> logger)
+        return ServiceResult<List<RoleDto>>.Ok(roles);
+    }
+
+    public async Task<ServiceResult<RoleDto>> CreateRoleAsync(string name)
+    {
+        if (await _roleManager.RoleExistsAsync(name))
+            return ServiceResult<RoleDto>.Conflict("Role already exists");
+
+        var role = new IdentityRole(name);
+        var result = await _roleManager.CreateAsync(role);
+
+        if (!result.Succeeded)
         {
-            _userManager = userManager;
-            _roleManager = roleManager;
-            _logger = logger;
+            _logger.LogError("Failed to create role {RoleName}: {Errors}",
+                name, string.Join("; ", result.Errors.Select(e => e.Description)));
+            return ServiceResult<RoleDto>.Failed(result.Errors.Select(e => e.Description));
         }
 
-        public async Task<ServiceResult<List<RoleDto>>> GetRolesAsync(CancellationToken ct = default)
-        {
-            var roles = await _roleManager.Roles
-                .AsNoTracking()
-                .Select(r => new RoleDto(r.Id, r.Name))
-                .ToListAsync(ct);
+        _logger.LogInformation("Role {RoleName} created", name);
+        return ServiceResult<RoleDto>.Ok(new RoleDto(role.Id, role.Name));
+    }
 
-            return ServiceResult<List<RoleDto>>.Ok(roles);
-        }
+    public async Task<ServiceResult<List<UserDto>>> GetUsersAsync(CancellationToken ct = default)
+    {
+        // Consider adding paging (skip/take) here once the user table grows.
+        var users = await _userManager.Users
+            .AsNoTracking()
+            .Select(u => new UserDto(u.Id, u.UserName, u.Email, u.EmailConfirmed))
+            .ToListAsync(ct);
 
-        public async Task<ServiceResult<RoleDto>> CreateRoleAsync(string name)
-        {
-            if (await _roleManager.RoleExistsAsync(name))
-                return ServiceResult<RoleDto>.Conflict("Role already exists");
+        return ServiceResult<List<UserDto>>.Ok(users);
+    }
 
-            var role = new IdentityRole(name);
-            var result = await _roleManager.CreateAsync(role);
+    public async Task<ServiceResult<IList<string>>> GetUserRolesAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return ServiceResult<IList<string>>.NotFound("User doesn't exist");
 
-            if (!result.Succeeded)
-            {
-                _logger.LogError("Failed to create role {RoleName}: {Errors}",
-                    name, string.Join("; ", result.Errors.Select(e => e.Description)));
-                return ServiceResult<RoleDto>.Failed(result.Errors.Select(e => e.Description));
-            }
+        var roles = await _userManager.GetRolesAsync(user);
+        return ServiceResult<IList<string>>.Ok(roles);
+    }
 
-            _logger.LogInformation("Role {RoleName} created", name);
-            return ServiceResult<RoleDto>.Ok(new RoleDto(role.Id, role.Name));
-        }
+    public async Task<ServiceResult<string>> AddUserToRoleAsync(string email, string roleName)
+    {
+        var (user, failure) = await ResolveUserAndRoleAsync(email, roleName);
+        if (failure is not null) return failure;
 
-        public async Task<ServiceResult<List<UserDto>>> GetUsersAsync(CancellationToken ct = default)
-        {
-            // Consider adding paging (skip/take) here once the user table grows.
-            var users = await _userManager.Users
-                .AsNoTracking()
-                .Select(u => new UserDto(u.Id, u.UserName, u.Email, u.EmailConfirmed))
-                .ToListAsync(ct);
+        if (await _userManager.IsInRoleAsync(user!, roleName))
+            return ServiceResult<string>.Conflict("User already has this role");
 
-            return ServiceResult<List<UserDto>>.Ok(users);
-        }
+        var result = await _userManager.AddToRoleAsync(user!, roleName);
+        if (!result.Succeeded)
+            return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
 
-        public async Task<ServiceResult<IList<string>>> GetUserRolesAsync(string email)
-        {
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user is null)
-                return ServiceResult<IList<string>>.NotFound("User doesn't exist");
+        _logger.LogInformation("User {UserId} added to role {RoleName}", user!.Id, roleName);
+        return ServiceResult<string>.Ok("User has been added to the role");
+    }
 
-            var roles = await _userManager.GetRolesAsync(user);
-            return ServiceResult<IList<string>>.Ok(roles);
-        }
+    public async Task<ServiceResult<string>> RemoveUserFromRoleAsync(string email, string roleName)
+    {
+        var (user, failure) = await ResolveUserAndRoleAsync(email, roleName);
+        if (failure is not null) return failure;
 
-        public async Task<ServiceResult<string>> AddUserToRoleAsync(string email, string roleName)
-        {
-            var (user, failure) = await ResolveUserAndRoleAsync(email, roleName);
-            if (failure is not null) return failure;
+        if (!await _userManager.IsInRoleAsync(user!, roleName))
+            return ServiceResult<string>.NotFound("User does not have this role");
 
-            if (await _userManager.IsInRoleAsync(user!, roleName))
-                return ServiceResult<string>.Conflict("User already has this role");
+        var result = await _userManager.RemoveFromRoleAsync(user!, roleName);
+        if (!result.Succeeded)
+            return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
 
-            var result = await _userManager.AddToRoleAsync(user!, roleName);
-            if (!result.Succeeded)
-                return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
+        _logger.LogInformation("User {UserId} removed from role {RoleName}", user!.Id, roleName);
+        return ServiceResult<string>.Ok("User has been removed from the role");
+    }
 
-            _logger.LogInformation("User {UserId} added to role {RoleName}", user!.Id, roleName);
-            return ServiceResult<string>.Ok("User has been added to the role");
-        }
+    // The "user exists? role exists?" check was copy-pasted in two endpoints; it lives here once now.
+    private async Task<(IdentityUser? User, ServiceResult<string>? Failure)> ResolveUserAndRoleAsync(
+        string email, string roleName)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return (null, ServiceResult<string>.NotFound("User doesn't exist"));
 
-        public async Task<ServiceResult<string>> RemoveUserFromRoleAsync(string email, string roleName)
-        {
-            var (user, failure) = await ResolveUserAndRoleAsync(email, roleName);
-            if (failure is not null) return failure;
+        if (!await _roleManager.RoleExistsAsync(roleName))
+            return (null, ServiceResult<string>.NotFound("Role doesn't exist"));
 
-            if (!await _userManager.IsInRoleAsync(user!, roleName))
-                return ServiceResult<string>.NotFound("User does not have this role");
-
-            var result = await _userManager.RemoveFromRoleAsync(user!, roleName);
-            if (!result.Succeeded)
-                return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
-
-            _logger.LogInformation("User {UserId} removed from role {RoleName}", user!.Id, roleName);
-            return ServiceResult<string>.Ok("User has been removed from the role");
-        }
-
-        // The "user exists? role exists?" check was copy-pasted in two endpoints; it lives here once now.
-        private async Task<(IdentityUser? User, ServiceResult<string>? Failure)> ResolveUserAndRoleAsync(
-            string email, string roleName)
-        {
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user is null)
-                return (null, ServiceResult<string>.NotFound("User doesn't exist"));
-
-            if (!await _roleManager.RoleExistsAsync(roleName))
-                return (null, ServiceResult<string>.NotFound("Role doesn't exist"));
-
-            return (user, null);
-        }
+        return (user, null);
     }
 }
