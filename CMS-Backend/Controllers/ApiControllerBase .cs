@@ -8,7 +8,7 @@ public abstract class ApiControllerBase : ControllerBase
 {
     // Success -> 200 with the data as the body. Failure -> RFC 7807 ProblemDetails.
     protected IActionResult ToActionResult<T>(ServiceResult<T> result) =>
-        result.Succeeded ? Ok(result.Data) : ToProblem(result);
+        result.Succeeded ? Ok(result) : ToProblem(result);
 
     // For commands that have nothing useful to return (add/remove) -> 204.
     protected IActionResult ToNoContentResult<T>(ServiceResult<T> result) =>

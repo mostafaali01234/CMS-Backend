@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMS_Backend.Models
 {
-    [Table("ApiDataChangeLog")]
+    [Table("api_data_change_log")]
     public class ApiDataChangeLog
     {
         [Key]
@@ -11,7 +11,7 @@ namespace CMS_Backend.Models
         public long Id { get; set; }
 
         [Column("log_id")]
-        public long LogId { get; set; }
+        public long? LogId { get; set; }
 
         [Required]
         [MaxLength(200)]
@@ -29,7 +29,7 @@ namespace CMS_Backend.Models
         public string FieldName { get; set; }
 
         [Column("old_value")]
-        public string OldValue { get; set; }   // NVARCHAR(MAX)
+        public string? OldValue { get; set; }   // NVARCHAR(MAX)
 
         [Column("new_value")]
         public string NewValue { get; set; }   // NVARCHAR(MAX)

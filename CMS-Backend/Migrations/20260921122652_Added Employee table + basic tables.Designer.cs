@@ -4,6 +4,7 @@ using CMS_Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921122652_Added Employee table + basic tables")]
+    partial class AddedEmployeetablebasictables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,7 +109,7 @@ namespace CMS_Backend.Migrations
                         .HasColumnType("nvarchar(200)")
                         .HasColumnName("field_name");
 
-                    b.Property<long?>("LogId")
+                    b.Property<long>("LogId")
                         .HasColumnType("bigint")
                         .HasColumnName("log_id");
 
@@ -116,6 +119,7 @@ namespace CMS_Backend.Migrations
                         .HasColumnName("new_value");
 
                     b.Property<string>("OldValue")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("old_value");
 
@@ -136,263 +140,6 @@ namespace CMS_Backend.Migrations
                     b.HasIndex("LogId");
 
                     b.ToTable("api_data_change_log");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.City", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<long>("StateId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("state_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StateId");
-
-                    b.ToTable("city");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.CountryState", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("OrderNumber")
-                        .HasColumnType("int")
-                        .HasColumnName("order_number");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("country_state");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.Department", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<long>("ManagerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("manager_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ManagerId");
-
-                    b.ToTable("department");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.Employee", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<bool>("Active")
-                        .HasColumnType("bit")
-                        .HasColumnName("active");
-
-                    b.Property<string>("AdditionalAddress")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("additional_address");
-
-                    b.Property<DateTime?>("BirthDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("birth_date");
-
-                    b.Property<long>("CityId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("city_id");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long?>("DepartmentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("department_id");
-
-                    b.Property<string>("Education")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("education");
-
-                    b.Property<string>("EducationSpec")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("education_spec");
-
-                    b.Property<DateTime>("HireDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("hire_date");
-
-                    b.Property<string>("IdentiicationNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("identification_number");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<long>("JobId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("job_id");
-
-                    b.Property<int?>("KidsCount")
-                        .HasColumnType("int")
-                        .HasColumnName("kids_count");
-
-                    b.Property<int>("MartialStatus")
-                        .HasColumnType("int")
-                        .HasColumnName("martial_status");
-
-                    b.Property<int>("MilitaryStatus")
-                        .HasColumnType("int")
-                        .HasColumnName("military_status");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("notes");
-
-                    b.Property<decimal>("OpeningBalance")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("opening_balance");
-
-                    b.Property<string>("PersonalPhone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("personal_phone");
-
-                    b.Property<decimal>("Salary")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("salary");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("WorkPhone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("work_phone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CityId");
-
-                    b.HasIndex("DepartmentId");
-
-                    b.HasIndex("JobId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("employee");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.Job", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("job");
                 });
 
             modelBuilder.Entity("CMS_Backend.Models.RefreshToken", b =>
@@ -644,64 +391,11 @@ namespace CMS_Backend.Migrations
                 {
                     b.HasOne("CMS_Backend.Models.ApiActivityLog", "ApiActivityLog")
                         .WithMany()
-                        .HasForeignKey("LogId");
+                        .HasForeignKey("LogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("ApiActivityLog");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.City", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.CountryState", "State")
-                        .WithMany("Cities")
-                        .HasForeignKey("StateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("State");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.Department", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.Employee", "Manager")
-                        .WithMany()
-                        .HasForeignKey("ManagerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Manager");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.Employee", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.City", "CityAddress")
-                        .WithMany()
-                        .HasForeignKey("CityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CMS_Backend.Models.Department", "Department")
-                        .WithMany()
-                        .HasForeignKey("DepartmentId");
-
-                    b.HasOne("CMS_Backend.Models.Job", "Job")
-                        .WithMany()
-                        .HasForeignKey("JobId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "UserAccount")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CityAddress");
-
-                    b.Navigation("Department");
-
-                    b.Navigation("Job");
-
-                    b.Navigation("UserAccount");
                 });
 
             modelBuilder.Entity("CMS_Backend.Models.RefreshToken", b =>
@@ -764,11 +458,6 @@ namespace CMS_Backend.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.CountryState", b =>
-                {
-                    b.Navigation("Cities");
                 });
 #pragma warning restore 612, 618
         }

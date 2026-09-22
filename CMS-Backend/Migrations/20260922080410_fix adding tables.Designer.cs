@@ -4,6 +4,7 @@ using CMS_Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260922080410_fix adding tables")]
+    partial class fixaddingtables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,7 +109,7 @@ namespace CMS_Backend.Migrations
                         .HasColumnType("nvarchar(200)")
                         .HasColumnName("field_name");
 
-                    b.Property<long?>("LogId")
+                    b.Property<long>("LogId")
                         .HasColumnType("bigint")
                         .HasColumnName("log_id");
 
@@ -116,6 +119,7 @@ namespace CMS_Backend.Migrations
                         .HasColumnName("new_value");
 
                     b.Property<string>("OldValue")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("old_value");
 
@@ -644,7 +648,9 @@ namespace CMS_Backend.Migrations
                 {
                     b.HasOne("CMS_Backend.Models.ApiActivityLog", "ApiActivityLog")
                         .WithMany()
-                        .HasForeignKey("LogId");
+                        .HasForeignKey("LogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("ApiActivityLog");
                 });

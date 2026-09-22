@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMS_Backend.Models
 {
-    [Table("ApiActivityLog")]
+    [Table("api_activity_log")]
     public class ApiActivityLog
     {
         [Key]

@@ -1,4 +1,5 @@
 ﻿using CMS_Backend.Models;
+using CMS_Backend.Models.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -10,6 +11,7 @@ namespace CMS_Backend.Helpers
     public class AuditSaveChangesInterceptor : SaveChangesInterceptor
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ICurrentUser _currentUser;
 
         // Entities that were Added in this save, captured in SavingChangesAsync
         // so we can log a "created" marker in SavedChangesAsync — by then
@@ -26,9 +28,10 @@ namespace CMS_Backend.Helpers
              "AspNetUsers",
         };
 
-        public AuditSaveChangesInterceptor(IHttpContextAccessor httpContextAccessor)
+        public AuditSaveChangesInterceptor(IHttpContextAccessor httpContextAccessor, ICurrentUser currentUser)
         {
             _httpContextAccessor = httpContextAccessor;
+            _currentUser = currentUser;
         }
 
         private static bool ShouldAudit(EntityEntry e)
@@ -50,6 +53,54 @@ namespace CMS_Backend.Helpers
 
             return true;
         }
+       
+        public override InterceptionResult<int> SavingChanges(
+           DbContextEventData eventData,
+           InterceptionResult<int> result)
+        {
+            ApplyDateAudit(eventData.Context);
+            return base.SavingChanges(eventData, result);
+        }
+        private void ApplyDateAudit(DbContext? context)
+        {
+            if (context is null)
+            {
+                return;
+            }
+
+            // Reading ChangeTracker.Entries<T>() already forces change detection
+            // when auto-detect is on (the default), but calling DetectChanges
+            // explicitly keeps auditing correct even if a code path turned
+            // auto-detect off. It's what EF Core's own audit sample does.
+            context.ChangeTracker.DetectChanges();
+
+            var now = DateTime.UtcNow;
+            var user = _currentUser.UserId ?? "system";
+
+            foreach (var entry in context.ChangeTracker.Entries<IAuditable>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    entry.Entity.CreatedAtUtc = now;
+                    entry.Entity.CreatedBy = user;
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.UpdatedAtUtc = now;
+                    entry.Entity.UpdatedBy = user;
+                }
+            }
+
+            foreach (var entry in context.ChangeTracker.Entries<ISoftDeletable>())
+            {
+                if (entry.State == EntityState.Deleted)
+                {
+                    entry.State = EntityState.Modified;
+                    entry.Entity.IsDeleted = true;
+                    entry.Entity.DeletedAtUtc = now;
+                }
+            }
+        }
 
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData,
@@ -58,6 +109,8 @@ namespace CMS_Backend.Helpers
         {
             var context = eventData.Context;
             if (context == null) return result;
+
+            ApplyDateAudit(eventData.Context);
 
             var logId = _httpContextAccessor.HttpContext?.Items["CurrentLogId"] as long?;
 
@@ -101,6 +154,7 @@ namespace CMS_Backend.Helpers
         {
             if (_pendingAdded.Count > 0 && eventData.Context != null)
             {
+                ApplyDateAudit(eventData.Context);
                 var logId = _httpContextAccessor.HttpContext?.Items["CurrentLogId"] as long?;
                 var markers = _pendingAdded
                     .Select(e => EntityDiffHelper.GetCreatedMarker(e, logId))

@@ -2,6 +2,7 @@ using CMS_Backend.Configuration;
 using CMS_Backend.Data;
 using CMS_Backend.Helpers;
 using CMS_Backend.Middleware;
+using CMS_Backend.Models.Interfaces;
 using CMS_Backend.Services;
 using CMS_Backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,12 +51,18 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
         options.SignIn.RequireConfirmedAccount = true
         ).AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IUserClaimService, UserClaimService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IJobService, JobService>();
+builder.Services.AddScoped<IStateService, StateService>();
+builder.Services.AddScoped<ICityService, CityService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 
 builder.Services.AddCorrelationIdManager();
 
@@ -66,7 +74,13 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
 builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfig"));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter());
+    });
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -84,6 +98,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "My API v1");
+    });
 }
 
 app.UseHttpsRedirection();

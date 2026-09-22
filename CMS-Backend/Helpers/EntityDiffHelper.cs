@@ -46,7 +46,7 @@ namespace CMS_Backend.Helpers
 
                 changes.Add(new ApiDataChangeLog
                 {
-                    LogId = (long)logId,
+                    LogId = /*(long)*/logId,
                     TableName = tableName,
                     PrimaryKeyValue = pkValue,
                     FieldName = propName,
@@ -79,7 +79,7 @@ namespace CMS_Backend.Helpers
         {
             return new ApiDataChangeLog
             {
-                LogId = (long)logId,
+                LogId = /*(long)*/logId,
                 TableName = entry.Metadata.GetTableName(),
                 PrimaryKeyValue = GetPrimaryKeyValue(entry),
                 FieldName = "(created)",

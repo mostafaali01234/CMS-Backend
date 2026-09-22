@@ -4,12 +4,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CMS_Backend.Models
 {
-    [Table("RefreshTokens")]
+    [Table("refresh_token")]
     public class RefreshToken
     {
         [Key]
         [Column(name: "id")]
-        public int Id { get; set; }
+        public long Id { get; set; }
         [Column(name: "user_id")]
         public string UserId { get; set; } // Linked to the AspNet Identity User Id
         [Column(name: "token")]
