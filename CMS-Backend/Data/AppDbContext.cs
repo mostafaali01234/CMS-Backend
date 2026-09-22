@@ -16,6 +16,8 @@ namespace CMS_Backend.Data
         public  DbSet<CountryState> CountryState { get; set; }
         public  DbSet<City> City { get; set; }
         public  DbSet<Employee> Employee { get; set; }
+        public  DbSet<ProductCategory> ProductCategory { get; set; }
+        public  DbSet<Product> Product { get; set; }
 
 
         //protected override void OnModelCreating(ModelBuilder modelBuilder)
