@@ -18,6 +18,11 @@ namespace CMS_Backend.Data
         public  DbSet<Employee> Employee { get; set; }
         public  DbSet<ProductCategory> ProductCategory { get; set; }
         public  DbSet<Product> Product { get; set; }
+        public  DbSet<ProductUnit> ProductUnit { get; set; }
+        public  DbSet<ProductUnitCommission> ProductUnitCommission { get; set; }
+        public  DbSet<Supplier> Supplier { get; set; }
+        public  DbSet<Customer> Customer { get; set; }
+        public  DbSet<CustomerSource> CustomerSource { get; set; }
 
 
         //protected override void OnModelCreating(ModelBuilder modelBuilder)

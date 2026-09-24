@@ -2,6 +2,7 @@ using CMS_Backend.Configuration;
 using CMS_Backend.Data;
 using CMS_Backend.Helpers;
 using CMS_Backend.Middleware;
+using CMS_Backend.Models;
 using CMS_Backend.Models.Interfaces;
 using CMS_Backend.Services;
 using CMS_Backend.Services.Interfaces;
@@ -65,6 +66,9 @@ builder.Services.AddScoped<ICityService, CityService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IProductCategoryService, ProductCategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IProductUnitCommissionService, ProductUnitCommissionService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 
 builder.Services.AddCorrelationIdManager();
 

@@ -1,19 +1,10 @@
-﻿using CMS_Backend.Configuration;
-using CMS_Backend.Data;
+﻿using CMS_Backend.Data;
 using CMS_Backend.Models;
 using CMS_Backend.Models.DTOs;
 using CMS_Backend.Models.DTOs.Responses;
 using CMS_Backend.Services.Interfaces;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using System.Data;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace CMS_Backend.Services;
 
@@ -98,13 +89,13 @@ public class ProductService : IProductService
         dto.Name = dto.Name.Trim();
 
         // --- Barcode (required + unique) ---
-        if (string.IsNullOrWhiteSpace(dto.Barcode))
-            return "Barcode is required";
+        //if (string.IsNullOrWhiteSpace(dto.Barcode))
+        //    return "Barcode is required";
 
-        if (dto.Barcode.Trim().Length > BarcodeMaxLength)
-            return $"Barcode cannot exceed {BarcodeMaxLength} characters";
+        //if (dto.Barcode.Trim().Length > BarcodeMaxLength)
+        //    return $"Barcode cannot exceed {BarcodeMaxLength} characters";
 
-        dto.Barcode = dto.Barcode.Trim();
+        dto.Barcode = dto.Barcode?.Trim() ?? "";
 
         var barcodeQuery = _dbContext.Product
             .Where(p => !p.IsDeleted && p.Barcode == dto.Barcode);

@@ -16,10 +16,12 @@ public class ProductController : ApiControllerBase
 {
 
     private readonly IProductService _productService;
+    private readonly IProductUnitCommissionService _commService;
 
-    public ProductController(IProductService productService)
+    public ProductController(IProductService productService, IProductUnitCommissionService commService)
     {
         _productService = productService;
+        _commService = commService;
     }
 
     // GET: api/product
@@ -46,4 +48,19 @@ public class ProductController : ApiControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _productService.DeleteAsync(id));
+
+
+    //--------------------------------------------------------------------------------------
+
+
+    // GET: api/{productID}/unit-comm
+    [HttpGet("{productId:long}/unit-comm")]
+    public async Task<IActionResult> GetAllCommissions(long productId) =>
+        ToActionResult(await _commService.GetByProductIdAsync(productId));
+
+
+    // POST: api/{productID}/unit-comm
+    [HttpPost("{productId:long}/unit-comm")]
+    public async Task<IActionResult> AddProductComms([FromBody] List<ProductUnitCommission> commList) =>
+        ToActionResult(await _commService.CreateForProductAsync(commList));
 }
