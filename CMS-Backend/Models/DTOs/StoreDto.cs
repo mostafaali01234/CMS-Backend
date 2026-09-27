@@ -1,9 +1,9 @@
-﻿// Models/DTOs/CustomerDto.cs
+﻿// Models/DTOs/StoreDto.cs
 using System.Text.Json.Serialization;
 
 namespace CMS_Backend.Models.DTOs
 {
-    public class CustomerDto
+    public class StoreDto
     {
         [JsonPropertyName("id")]
         public long Id { get; set; }
@@ -11,17 +11,17 @@ namespace CMS_Backend.Models.DTOs
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonPropertyName("notes")]
-        public string Notes { get; set; } = string.Empty;
+        [JsonPropertyName("manager_id")]
+        public long ManagerId { get; set; }
+
+        [JsonPropertyName("manager_name")]
+        public string ManagerName { get; set; } = string.Empty;
 
         [JsonPropertyName("phone")]
         public string Phone { get; set; } = string.Empty;
 
-        [JsonPropertyName("phone_2")]
-        public string? Phone2 { get; set; } = string.Empty;
-
-        [JsonPropertyName("phone_3")]
-        public string? Phone3 { get; set; } = string.Empty;
+        [JsonPropertyName("notes")]
+        public string Notes { get; set; } = string.Empty;
 
         [JsonPropertyName("city_id")]
         public long CityId { get; set; }
@@ -30,19 +30,10 @@ namespace CMS_Backend.Models.DTOs
         public string CityName { get; set; } = string.Empty;
 
         [JsonPropertyName("address")]
-        public string? Address { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
 
-        [JsonPropertyName("opening_balance")]
-        public decimal OpeningBalance { get; set; }
-
-        [JsonPropertyName("seller_id")]
-        public long SellerId { get; set; }
-
-        [JsonPropertyName("seller_name")]
-        public string SellerName { get; set; } = string.Empty;
-
-        [JsonPropertyName("regular_customer")]
-        public bool? RegularCustomer { get; set; }
+        [JsonPropertyName("active")]
+        public bool Active { get; set; }
 
         [JsonPropertyName("created_at_utc")]
         public DateTime? CreatedAtUtc { get; set; }

@@ -121,11 +121,12 @@ namespace CMS_Backend.Helpers
             var changeRows = entries
                 .Where(e => e.State == EntityState.Modified)
                 .Where(ShouldAudit)
-                //.Where(e => e.Entity.GetType() != typeof(ApiDataChangeLog)
-                //            && e.Entity.GetType() != typeof(RefreshToken)
-                //            && e.Entity.GetType() != typeof(ApiActivityLog))
                 .SelectMany(e => EntityDiffHelper.GetChanges(e, logId))
                 .ToList();
+
+            var user = _currentUser.UserId ?? "system";
+
+            changeRows.ForEach(z => z.UserId = user);
 
             if (changeRows.Count > 0)
             {
@@ -139,9 +140,6 @@ namespace CMS_Backend.Helpers
            _pendingAdded.AddRange(entries.Where(e =>
                 e.State == EntityState.Added
                 && ShouldAudit(e)
-                //&& e.Entity.GetType() != typeof(ApiDataChangeLog)
-                //&& e.Entity.GetType() != typeof(RefreshToken)
-                //&& e.Entity.GetType() != typeof(ApiActivityLog)
                 ));
 
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
@@ -159,6 +157,10 @@ namespace CMS_Backend.Helpers
                 var markers = _pendingAdded
                     .Select(e => EntityDiffHelper.GetCreatedMarker(e, logId))
                     .ToList();
+
+                var user = _currentUser.UserId ?? "system";
+
+                markers.ForEach(z => z.UserId = user);
 
                 eventData.Context.Set<ApiDataChangeLog>().AddRange(markers);
                 _pendingAdded.Clear();

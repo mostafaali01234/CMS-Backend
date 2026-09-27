@@ -44,8 +44,8 @@ public class CustomerService : ICustomerService
             CityName = customer.City?.Name ?? "",
             Address = customer.Address,
             OpeningBalance = customer.OpeningBalance,
-            SellerId = customer.SellerId,
-            SellerName = customer.Seller?.UserName ?? "",
+            SellerId = customer.SellerId ?? 0,
+            SellerName = customer.Seller?.Name ?? "",
             RegularCustomer = customer.RegularCustomer,
             CreatedAtUtc = customer.CreatedAtUtc,
             CreatedBy = customer.CreatedBy ?? "",
@@ -140,10 +140,10 @@ public class CustomerService : ICustomerService
         // --- OpeningBalance --- (no bound; can legitimately be negative, e.g. a credit balance)
 
         // --- Seller (required FK to IdentityUser) ---
-        if (string.IsNullOrWhiteSpace(dto.SellerId))
+        if ((dto.SellerId) == 0 || dto.SellerId == null)
             return "SellerId is required";
 
-        var sellerExists = await _dbContext.Users.AnyAsync(u => u.Id == dto.SellerId);
+        var sellerExists = await _dbContext.Employee.AnyAsync(u => u.Id == dto.SellerId);
         if (!sellerExists)
             return $"Seller with Id {dto.SellerId} was not found";
 

@@ -69,6 +69,10 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProductUnitCommissionService, ProductUnitCommissionService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ICarService, CarService>();
+builder.Services.AddScoped<IStoreService, StoreService>();
+builder.Services.AddScoped<IStoreTransactionService, StoreTransactionService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 builder.Services.AddCorrelationIdManager();
 

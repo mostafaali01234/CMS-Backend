@@ -34,6 +34,9 @@ namespace CMS_Backend.Models
         [Column("new_value")]
         public string NewValue { get; set; }   // NVARCHAR(MAX)
 
+        [Column("user_id")]
+        public string UserId { get; set; }   
+
         [Column("changed_date")]
         public DateTime ChangedDate { get; set; }
 

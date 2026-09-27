@@ -1,47 +1,43 @@
 ﻿using CMS_Backend.Models.Interfaces;
-using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace CMS_Backend.Models
 {
-    [Table("customer")]
-    public class Customer : IAuditable, ISoftDeletable
+    [Table("store")]
+    public class Store : IAuditable, ISoftDeletable
     {
         [Key]
         [Column(name: "id")]
         public long Id { get; set; }
+
         [Column(name: "name")]
         public string Name { get; set; } = string.Empty;
-        [Column(name: "notes")]
-        public string Notes { get; set; } = string.Empty;
+
+        [Column(name: "manager_id")]
+        [JsonPropertyName("manager_id")]
+        public long ManagerId { get; set; }
+        [ForeignKey(nameof(ManagerId))]
+        public virtual Employee? Manager { get; set; }
+
         [Column(name: "phone")]
         public string Phone { get; set; } = string.Empty;
-        [Column(name: "phone_2")]
-        public string? Phone2 { get; set; } = string.Empty;
-        [Column(name: "phone_3")]
-        public string? Phone3 { get; set; } = string.Empty;
+
+        [Column(name: "notes")]
+        public string Notes { get; set; } = string.Empty;
 
         [Column(name: "city_id")]
         [JsonPropertyName("city_id")]
         public long CityId { get; set; }
-
         [ForeignKey(nameof(CityId))]
         public virtual City? City { get; set; }
-        [Column(name: "Address")]
-        public string? Address { get; set; } = string.Empty;
-        [Column(name: "opening_balance")]
-        public decimal OpeningBalance { get; set; } = 0;
 
-        [Column(name: "seller_id")]
-        [JsonPropertyName("seller_id")]
-        public long? SellerId { get; set; }
+        [Column(name: "address")]
+        public string Address { get; set; } = string.Empty;
 
-        [ForeignKey(nameof(SellerId))]
-        public virtual Employee? Seller { get; set; }
-        [Column(name: "regular_customer")]
-        public bool? RegularCustomer { get; set; } = false;
+        [Column(name: "active")]
+        public bool Active { get; set; } = true;
 
 
         public DateTime CreatedAtUtc { get; set; }
