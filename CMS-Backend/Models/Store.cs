@@ -17,7 +17,7 @@ namespace CMS_Backend.Models
 
         [Column(name: "manager_id")]
         [JsonPropertyName("manager_id")]
-        public long ManagerId { get; set; }
+        public long? ManagerId { get; set; }
         [ForeignKey(nameof(ManagerId))]
         public virtual Employee? Manager { get; set; }
 

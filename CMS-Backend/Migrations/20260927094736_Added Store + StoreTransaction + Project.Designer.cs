@@ -4,6 +4,7 @@ using CMS_Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927094736_Added Store + StoreTransaction + Project")]
+    partial class AddedStoreStoreTransactionProject
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -170,7 +173,7 @@ namespace CMS_Backend.Migrations
 
                     b.Property<long>("DriverId")
                         .HasColumnType("bigint")
-                        .HasColumnName("driver_id")
+                        .HasColumnName("city_id")
                         .HasAnnotation("Relational:JsonPropertyName", "driver_id");
 
                     b.Property<decimal>("FilterChangeRate")
@@ -596,87 +599,6 @@ namespace CMS_Backend.Migrations
                     b.ToTable("employee");
                 });
 
-            modelBuilder.Entity("CMS_Backend.Models.ExpenseCategory", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("expense_category");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.ExpenseType", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("CategoryId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("category_id")
-                        .HasAnnotation("Relational:JsonPropertyName", "category_id");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.ToTable("expense_type");
-                });
-
             modelBuilder.Entity("CMS_Backend.Models.Job", b =>
                 {
                     b.Property<long>("Id")
@@ -712,55 +634,6 @@ namespace CMS_Backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("job");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.OrderLine", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<long>("ManagerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("manager_id")
-                        .HasAnnotation("Relational:JsonPropertyName", "manager_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("notes");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ManagerId");
-
-                    b.ToTable("order_line");
                 });
 
             modelBuilder.Entity("CMS_Backend.Models.Product", b =>
@@ -1534,36 +1407,6 @@ namespace CMS_Backend.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("order_line_city", b =>
-                {
-                    b.Property<long>("city_id")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("order_line_id")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("city_id", "order_line_id");
-
-                    b.HasIndex("order_line_id");
-
-                    b.ToTable("order_line_city");
-                });
-
-            modelBuilder.Entity("order_line_product_category", b =>
-                {
-                    b.Property<long>("order_line_id")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("product_category_id")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("order_line_id", "product_category_id");
-
-                    b.HasIndex("product_category_id");
-
-                    b.ToTable("order_line_product_category", (string)null);
-                });
-
             modelBuilder.Entity("CMS_Backend.Models.ApiDataChangeLog", b =>
                 {
                     b.HasOne("CMS_Backend.Models.ApiActivityLog", "ApiActivityLog")
@@ -1654,28 +1497,6 @@ namespace CMS_Backend.Migrations
                     b.Navigation("Job");
 
                     b.Navigation("UserAccount");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.ExpenseType", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.ExpenseCategory", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("CMS_Backend.Models.OrderLine", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.Employee", "Manager")
-                        .WithMany()
-                        .HasForeignKey("ManagerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("CMS_Backend.Models.Product", b =>
@@ -1841,36 +1662,6 @@ namespace CMS_Backend.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("order_line_city", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.City", null)
-                        .WithMany()
-                        .HasForeignKey("city_id")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("CMS_Backend.Models.OrderLine", null)
-                        .WithMany()
-                        .HasForeignKey("order_line_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("order_line_product_category", b =>
-                {
-                    b.HasOne("CMS_Backend.Models.OrderLine", null)
-                        .WithMany()
-                        .HasForeignKey("order_line_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CMS_Backend.Models.ProductCategory", null)
-                        .WithMany()
-                        .HasForeignKey("product_category_id")
-                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 

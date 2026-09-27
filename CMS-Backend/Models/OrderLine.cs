@@ -1,21 +1,34 @@
 ﻿using CMS_Backend.Models.Interfaces;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CMS_Backend.Models
 {
-    [Table("product_category")]
-    public class ProductCategory : IAuditable, ISoftDeletable
+    [Table("order_line")]
+    public class OrderLine : IAuditable, ISoftDeletable
     {
         [Key]
         [Column(name: "id")]
         public long Id { get; set; }
+
         [Column(name: "name")]
         public string Name { get; set; } = string.Empty;
-        [Column(name: "description")]
-        public string? Description { get; set; } = string.Empty;
 
-        public virtual ICollection<OrderLine> OrderLines { get; set; } = new List<OrderLine>();
+        [Column(name: "notes")]
+        public string Notes { get; set; } = string.Empty;
+
+        [Column(name: "manager_id")]
+        [JsonPropertyName("manager_id")]
+        public long ManagerId { get; set; }
+
+        [ForeignKey(nameof(ManagerId))]
+        public virtual Employee? Manager { get; set; }
+
+        public virtual ICollection<City> Cities { get; set; } = new List<City>();
+        public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();
+
+
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

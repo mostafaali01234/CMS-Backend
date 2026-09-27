@@ -15,7 +15,7 @@ namespace CMS_Backend.Models
         public string Name { get; set; } = string.Empty;
         [Column(name: "notes")]
         public string Notes { get; set; } = string.Empty;
-        [Column(name: "city_id")]
+        [Column(name: "driver_id")]
         [JsonPropertyName("driver_id")]
         public long DriverId { get; set; }
 

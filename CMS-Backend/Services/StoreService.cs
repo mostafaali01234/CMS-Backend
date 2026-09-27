@@ -36,7 +36,7 @@ public class StoreService : IStoreService
         {
             Id = store.Id,
             Name = store.Name,
-            ManagerId = store.ManagerId,
+            ManagerId = store.ManagerId ?? 0,
             ManagerName = store.Manager?.Name ?? "",
             Phone = store.Phone,
             Notes = store.Notes,

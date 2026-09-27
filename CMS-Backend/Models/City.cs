@@ -18,5 +18,7 @@ namespace CMS_Backend.Models
 
         [ForeignKey(nameof(StateId))]
         public virtual CountryState? State { get; set; }
+
+        public virtual ICollection<OrderLine> OrderLines { get; set; } = new List<OrderLine>();
     }
 }

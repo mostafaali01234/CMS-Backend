@@ -55,10 +55,10 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IUserClaimService, UserClaimService>();
-builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IStateService, StateService>();
@@ -66,6 +66,8 @@ builder.Services.AddScoped<ICityService, CityService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IProductCategoryService, ProductCategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IProductAssemblyDefinitionService, ProductAssemblyDefinitionService>();
+builder.Services.AddScoped<IProductAssemblyOperationService, ProductAssemblyOperationService>();
 builder.Services.AddScoped<IProductUnitCommissionService, ProductUnitCommissionService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -73,6 +75,9 @@ builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IStoreTransactionService, StoreTransactionService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IExpenseCategoryService, ExpenseCategoryService>();
+builder.Services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
+builder.Services.AddScoped<IOrderLineService, OrderLineService>();
 
 builder.Services.AddCorrelationIdManager();
 
