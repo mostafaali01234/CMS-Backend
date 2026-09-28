@@ -78,6 +78,9 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IExpenseCategoryService, ExpenseCategoryService>();
 builder.Services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
 builder.Services.AddScoped<IOrderLineService, OrderLineService>();
+builder.Services.AddScoped<IMoneySafeCategoryService, MoneySafeCategoryService>();
+builder.Services.AddScoped<IMoneySafeService, MoneySafeService>();
+builder.Services.AddScoped<IMoneySafeTransactionService, MoneySafeTransactionService>();
 
 builder.Services.AddCorrelationIdManager();
 

@@ -33,6 +33,10 @@ namespace CMS_Backend.Data
         public  DbSet<ExpenseCategory> ExpenseCategory { get; set; }
         public  DbSet<ExpenseType> ExpenseType { get; set; }
         public  DbSet<OrderLine> OrderLine { get; set; }
+        public  DbSet<MoneySafeType> MoneySafeType { get; set; }
+        public  DbSet<MoneySafeCategory> MoneySafeCategory { get; set; }
+        public  DbSet<MoneySafe> MoneySafe { get; set; }
+        public  DbSet<MoneySafeTransaction> MoneySafeTransaction { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -124,6 +128,25 @@ namespace CMS_Backend.Data
                       .WithMany()
                       .HasForeignKey(o => o.OutStoreId)
                       .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<MoneySafe>(e =>
+            {
+                e.Property(x => x.OpeningBalance).HasPrecision(18, 4);
+                e.Property(x => x.OpeningBalanceCurrency).HasPrecision(18, 4);
+            });
+
+            modelBuilder.Entity<MoneySafeTransaction>(e =>
+            {
+                e.HasOne(x => x.OutMoneySafe)
+                 .WithMany()
+                 .HasForeignKey(x => x.OutMoneySafeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.InMoneySafe)
+                 .WithMany()
+                 .HasForeignKey(x => x.InMoneySafeId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
