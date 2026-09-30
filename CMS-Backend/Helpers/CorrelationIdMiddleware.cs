@@ -1,6 +1,6 @@
-﻿using CMS_Backend.Configuration.Interfaces;
+﻿using CMS.Api.Configuration.Interfaces;
 
-namespace CMS_Backend.Helpers;
+namespace CMS.Api.Helpers;
 public class CorrelationIdMiddleware
 {
     private readonly RequestDelegate _next;

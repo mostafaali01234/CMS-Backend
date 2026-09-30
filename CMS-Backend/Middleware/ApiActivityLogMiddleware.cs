@@ -1,9 +1,9 @@
-﻿using CMS_Backend.Data;
-using CMS_Backend.Helpers;
-using CMS_Backend.Models;
+﻿using CMS.Api.Data;
+using CMS.Api.Helpers;
+using CMS.Domain.Models;
 using System.Diagnostics;
 
-namespace CMS_Backend.Middleware
+namespace CMS.Api.Middleware
 {
     public class ApiActivityLogMiddleware
     {

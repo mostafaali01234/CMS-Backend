@@ -1,12 +1,13 @@
-﻿using CMS_Backend.Models;
-using CMS_Backend.Models.Interfaces;
+﻿using CMS.Domain.Models;
+using CMS.Api.Models.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Collections.Generic;
+using CMS.Domain.Interfaces;
 
-namespace CMS_Backend.Helpers
+namespace CMS.Api.Helpers
 {
     public class AuditSaveChangesInterceptor : SaveChangesInterceptor
     {

@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 
-namespace CMS_Backend.Models.Interfaces
+namespace CMS.Api.Models.Interfaces
 {
     public interface ICurrentUser
     {

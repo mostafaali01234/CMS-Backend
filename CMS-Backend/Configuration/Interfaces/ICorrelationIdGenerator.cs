@@ -1,4 +1,4 @@
-﻿namespace CMS_Backend.Configuration.Interfaces;
+﻿namespace CMS.Api.Configuration.Interfaces;
 
 public interface ICorrelationIdGenerator
 {

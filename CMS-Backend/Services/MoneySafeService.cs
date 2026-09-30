@@ -1,12 +1,12 @@
 ﻿// Services/MoneySafeService.cs
-using CMS_Backend.Data;
-using CMS_Backend.Models;
-using CMS_Backend.Models.DTOs;
-using CMS_Backend.Models.DTOs.Responses;
-using CMS_Backend.Services.Interfaces;
+using CMS.Api.Data;
+using CMS.Domain.Models;
+using CMS.Api.Models.DTOs;
+using CMS.Api.Models.DTOs.Responses;
+using CMS.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace CMS_Backend.Services;
+namespace CMS.Api.Services;
 
 public class MoneySafeService : IMoneySafeService
 {

@@ -1,6 +1,6 @@
-﻿using CMS_Backend.Configuration.Interfaces;
+﻿using CMS.Api.Configuration.Interfaces;
 
-namespace CMS_Backend.Configuration;
+namespace CMS.Api.Configuration;
 
 public class CorrelationIdGenerator : ICorrelationIdGenerator
 {

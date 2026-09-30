@@ -1,7 +1,7 @@
-﻿using CMS_Backend.Configuration;
-using CMS_Backend.Configuration.Interfaces;
+﻿using CMS.Api.Configuration;
+using CMS.Api.Configuration.Interfaces;
 
-namespace CMS_Backend.Services;
+namespace CMS.Api.Services;
 
 public static class ServiceCollectionExtensions
 {

@@ -1,4 +1,4 @@
-﻿namespace CMS_Backend.Configuration
+﻿namespace CMS.Api.Configuration
 {
     public class JwtConfig
     {

@@ -1,7 +1,7 @@
-﻿using CMS_Backend.Models;
-using CMS_Backend.Models.DTOs.Responses;
+﻿using CMS.Domain.Models;
+using CMS.Api.Models.DTOs.Responses;
 
-namespace CMS_Backend.Services.Interfaces;
+namespace CMS.Api.Services.Interfaces;
 
 public interface ISupplierService
 {

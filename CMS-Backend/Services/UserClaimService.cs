@@ -1,9 +1,9 @@
-﻿using CMS_Backend.Models.DTOs.Responses;
+﻿using CMS.Api.Models.DTOs.Responses;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
-using CMS_Backend.Services.Interfaces;
+using CMS.Api.Services.Interfaces;
 
-namespace CMS_Backend.Services;
+namespace CMS.Api.Services;
 
 public class UserClaimService : IUserClaimService
 {

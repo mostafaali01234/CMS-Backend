@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace CMS_Backend.Helpers
+namespace CMS.Api.Helpers
 {
     public static class SensitiveDataRedactor
     {

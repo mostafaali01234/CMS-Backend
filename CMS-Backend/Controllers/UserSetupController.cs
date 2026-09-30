@@ -1,10 +1,10 @@
-﻿using CMS_Backend.Models.DTOs.Requests;
-using CMS_Backend.Services.Interfaces;
+﻿using CMS.Api.Models.DTOs.Requests;
+using CMS.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CMS_Backend.Controllers;
+namespace CMS.Api.Controllers;
 
 [Route("api/[controller]")]
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]

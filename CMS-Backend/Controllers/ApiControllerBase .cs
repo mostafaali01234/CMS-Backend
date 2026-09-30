@@ -1,7 +1,7 @@
-using CMS_Backend.Models.DTOs.Responses;
+using CMS.Api.Models.DTOs.Responses;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CMS_Backend.Controllers;
+namespace CMS.Api.Controllers;
 
 [ApiController]
 public abstract class ApiControllerBase : ControllerBase

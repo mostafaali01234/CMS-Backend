@@ -1,7 +1,7 @@
-﻿using CMS_Backend.Configuration;
+﻿using CMS.Api.Configuration;
 using System.ComponentModel.DataAnnotations;
 
-namespace CMS_Backend.Models.DTOs.Responses
+namespace CMS.Api.Models.DTOs.Responses
 {
     public class RegistrationResponse : AuthResult
     {

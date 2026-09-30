@@ -1,8 +1,9 @@
-﻿using CMS_Backend.Models;
+﻿using CMS.Domain.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace CMS_Backend.Data
+namespace CMS.Api.Data
 {
     public class AppDbContext : IdentityDbContext
     {
@@ -180,6 +181,22 @@ namespace CMS_Backend.Data
                 e.Property(x => x.ProductTotal).HasPrecision(18, 2);
                 e.Property(x => x.ProductDiscount).HasPrecision(18, 2);
                 e.Property(x => x.ProductNetTotal).HasPrecision(18, 2);
+            });
+
+            modelBuilder.Entity<Employee>(e =>
+            {
+                e.HasOne<IdentityUser>()
+                   .WithMany()
+                   .HasForeignKey(e => e.UserId)
+                   .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<RefreshToken>(e =>
+            {
+                e.HasOne<IdentityUser>()
+                   .WithMany()
+                   .HasForeignKey(e => e.UserId)
+                   .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

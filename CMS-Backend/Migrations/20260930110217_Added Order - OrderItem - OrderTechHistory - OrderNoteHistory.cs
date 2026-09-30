@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace CMS_Backend.Migrations
+namespace CMS.Api.Migrations
 {
     /// <inheritdoc />
     public partial class AddedOrderOrderItemOrderTechHistoryOrderNoteHistory : Migration

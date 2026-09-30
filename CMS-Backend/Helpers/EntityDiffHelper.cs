@@ -1,8 +1,8 @@
-﻿using CMS_Backend.Models;
+﻿using CMS.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace CMS_Backend.Helpers
+namespace CMS.Api.Helpers
 {
     public static class EntityDiffHelper
     {

@@ -1,7 +1,7 @@
-﻿using CMS_Backend.Models.DTOs;
-using CMS_Backend.Models.DTOs.Responses;
+﻿using CMS.Api.Models.DTOs;
+using CMS.Api.Models.DTOs.Responses;
 
-namespace CMS_Backend.Services.Interfaces;
+namespace CMS.Api.Services.Interfaces;
 
 public interface ICustomerService
 {

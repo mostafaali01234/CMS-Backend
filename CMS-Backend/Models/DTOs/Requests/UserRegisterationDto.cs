@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace CMS_Backend.Models.DTOs.Requests
+namespace CMS.Api.Models.DTOs.Requests
 {
     public class UserRegisterationDto
     {

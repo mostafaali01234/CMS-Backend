@@ -1,4 +1,4 @@
-﻿namespace CMS_Backend.Models.DTOs.Responses
+﻿namespace CMS.Api.Models.DTOs.Responses
 {
     public enum ResultStatus
     {

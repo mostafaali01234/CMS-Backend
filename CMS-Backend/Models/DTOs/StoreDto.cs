@@ -1,7 +1,7 @@
 ﻿// Models/DTOs/StoreDto.cs
 using System.Text.Json.Serialization;
 
-namespace CMS_Backend.Models.DTOs
+namespace CMS.Api.Models.DTOs
 {
     public class StoreDto
     {

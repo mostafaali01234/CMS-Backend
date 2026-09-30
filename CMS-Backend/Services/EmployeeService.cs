@@ -1,12 +1,13 @@
-﻿using CMS_Backend.Data;
-using CMS_Backend.Models;
-using CMS_Backend.Models.DTOs;
-using CMS_Backend.Models.DTOs.Responses;
-using CMS_Backend.Services.Interfaces;
+﻿using CMS.Api.Data;
+using CMS.Domain.Models;
+using CMS.Api.Models.DTOs;
+using CMS.Api.Models.DTOs.Responses;
+using CMS.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text.RegularExpressions;
-namespace CMS_Backend.Services;
+using CMS.Domain.Enums;
+namespace CMS.Api.Services;
 
 public class EmployeeService : IEmployeeService
 {
@@ -29,49 +30,51 @@ public class EmployeeService : IEmployeeService
         _logger = logger;
     }
 
-    private List<EmployeeDto> convertToDto(List<Employee> emps)
+    // Shared projection: Employee LEFT JOIN Users (UserId is optional) -> EmployeeDto.
+    // Employee has no UserAccount navigation, so the join is done explicitly.
+    // Note: '?.' can't be used inside an EF query expression, so ternaries / '??' are used instead.
+    private IQueryable<EmployeeDto> QueryDtos()
     {
-        var dtos = new List<EmployeeDto>();
-
-        foreach (var emp in emps)
-        {
-            dtos.Add(new EmployeeDto
+        return
+            from e in _dbContext.Employee.AsNoTracking()
+            where !e.IsDeleted
+            join u in _dbContext.Users on e.UserId equals u.Id into userJoin
+            from u in userJoin.DefaultIfEmpty()
+            select new EmployeeDto
             {
-                Id = emp.Id,
-                Name = emp.Name,
-                Active = emp.Active,
-                CityId = emp.CityId,
-                CityName = emp.CityAddress?.Name ?? "",
-                DepartmentId = emp.DepartmentId ?? 0,
-                departmentName = emp.Department?.Name ?? "",
-                UserId = emp.UserId,
-                UserEmail = emp.UserAccount?.Email ?? "",
-                AdditionalAddress = emp.AdditionalAddress,
-                BirthDate = emp.BirthDate,
-                Education = emp.Education,
-                EducationSpec = emp.EducationSpec,
-                HireDate = emp.HireDate,
-                IdentificationNumber = emp.IdentificationNumber,
-                JobId = emp.JobId,
-                JobName = emp.Job?.Name ?? "",
-                KidsCount = emp.KidsCount,
-                MartialStatus = emp.MartialStatus,
-                MilitaryStatus = emp.MilitaryStatus,
-                Notes = emp.Notes,
-                OpeningBalance = emp.OpeningBalance,
-                PersonalPhone = emp.PersonalPhone,
-                Salary = emp.Salary,
-                WorkPhone = emp.WorkPhone,
+                Id = e.Id,
+                Name = e.Name,
+                Active = e.Active,
+                CityId = e.CityId,
+                CityName = e.CityAddress != null ? e.CityAddress.Name : "",
+                DepartmentId = e.DepartmentId ?? 0,
+                departmentName = e.Department != null ? e.Department.Name : "",
+                UserId = e.UserId,
+                UserEmail = u != null ? u.Email : "",
+                AdditionalAddress = e.AdditionalAddress,
+                BirthDate = e.BirthDate,
+                Education = e.Education,
+                EducationSpec = e.EducationSpec,
+                HireDate = e.HireDate,
+                IdentificationNumber = e.IdentificationNumber,
+                JobId = e.JobId,
+                JobName = e.Job != null ? e.Job.Name : "",
+                KidsCount = e.KidsCount,
+                MartialStatus = e.MartialStatus,
+                MilitaryStatus = e.MilitaryStatus,
+                Notes = e.Notes,
+                OpeningBalance = e.OpeningBalance,
+                PersonalPhone = e.PersonalPhone,
+                Salary = e.Salary,
+                WorkPhone = e.WorkPhone,
 
-                CreatedAtUtc = emp.CreatedAtUtc,
-                CreatedBy = emp.CreatedBy ?? "",
-                UpdatedAtUtc = emp.UpdatedAtUtc,
-                UpdatedBy = emp.UpdatedBy ?? ""
-            });
-        }
-
-        return dtos;
+                CreatedAtUtc = e.CreatedAtUtc,
+                CreatedBy = e.CreatedBy ?? "",
+                UpdatedAtUtc = e.UpdatedAtUtc,
+                UpdatedBy = e.UpdatedBy ?? ""
+            };
     }
+
     private static int CalculateAge(DateTime birthDate)
     {
         var today = DateTime.UtcNow.Date;
@@ -230,13 +233,8 @@ public class EmployeeService : IEmployeeService
 
     public async Task<ServiceResult<List<EmployeeDto>>> GetAllAsync()
     {
-        var emps = await _dbContext.Employee
-            .Include(z => z.CityAddress)
-            .Include(z => z.Job)
-            .Include(z => z.Department)
-            .Include(z => z.UserAccount)
-            .Where(z => !z.IsDeleted).AsNoTracking().ToListAsync();
-        return ServiceResult<List<EmployeeDto>>.Ok(convertToDto(emps));
+        var dtos = await QueryDtos().ToListAsync();
+        return ServiceResult<List<EmployeeDto>>.Ok(dtos);
     }
 
     public async Task<ServiceResult<EmployeeDto?>> GetByIdAsync(long id)
@@ -244,14 +242,7 @@ public class EmployeeService : IEmployeeService
         if (id <= 0)
             return ServiceResult<EmployeeDto?>.Failed("A valid employee Id is required");
 
-        var emp = await _dbContext.Employee
-            .Include(z => z.CityAddress)
-            .Include(z => z.Job)
-            .Include(z => z.Department)
-            .Include(z => z.UserAccount)
-            .Where(z => !z.IsDeleted && z.Id == id).AsNoTracking().ToListAsync();
-
-        var dto = convertToDto(emp).FirstOrDefault();
+        var dto = await QueryDtos().FirstOrDefaultAsync(d => d.Id == id);
         if (dto is null)
             return ServiceResult<EmployeeDto?>.NotFound("Employee not found");
 
@@ -272,16 +263,10 @@ public class EmployeeService : IEmployeeService
 
         _logger.LogInformation("Employee created with Id {EmployeeId}", emp.Id);
 
-        // Reload with Manager included so ManagerName is populated on the DTO
-        var created = await _dbContext.Employee
-            .Include(z => z.CityAddress)
-            .Include(z => z.Job)
-            .Include(z => z.Department)
-            .Include(z => z.UserAccount)
-            .AsNoTracking()
-            .FirstAsync(d => d.Id == emp.Id);
+        // Reload through the shared projection so city/job/department/user email are populated on the DTO
+        var created = await QueryDtos().FirstAsync(d => d.Id == emp.Id);
 
-        return ServiceResult<EmployeeDto>.Ok(convertToDto(new List<Employee> { created }).First());
+        return ServiceResult<EmployeeDto>.Ok(created);
     }
 
     public async Task<ServiceResult<bool>> UpdateAsync(long id, Employee employee)

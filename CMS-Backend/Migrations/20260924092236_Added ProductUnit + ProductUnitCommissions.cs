@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace CMS_Backend.Migrations
+namespace CMS.Api.Migrations
 {
     /// <inheritdoc />
     public partial class AddedProductUnitProductUnitCommissions : Migration

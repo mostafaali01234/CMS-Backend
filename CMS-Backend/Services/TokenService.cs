@@ -1,7 +1,7 @@
-﻿using CMS_Backend.Configuration;
-using CMS_Backend.Data;
-using CMS_Backend.Models;
-using CMS_Backend.Models.DTOs.Responses;
+﻿using CMS.Api.Configuration;
+using CMS.Api.Data;
+using CMS.Domain.Models;
+using CMS.Api.Models.DTOs.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -11,9 +11,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using CMS_Backend.Services.Interfaces;
+using CMS.Api.Services.Interfaces;
 
-namespace CMS_Backend.Services;
+namespace CMS.Api.Services;
 
 public class TokenService : ITokenService
 {
