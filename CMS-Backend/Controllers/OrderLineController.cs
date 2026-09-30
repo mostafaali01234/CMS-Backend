@@ -1,5 +1,5 @@
 using CMS.Domain.Models;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

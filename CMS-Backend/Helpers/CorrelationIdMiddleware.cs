@@ -1,4 +1,4 @@
-﻿using CMS.Api.Configuration.Interfaces;
+﻿using CMS.Application.Interfaces.Configuration;
 
 namespace CMS.Api.Helpers;
 public class CorrelationIdMiddleware

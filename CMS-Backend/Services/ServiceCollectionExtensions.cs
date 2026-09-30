@@ -1,5 +1,5 @@
-﻿using CMS.Api.Configuration;
-using CMS.Api.Configuration.Interfaces;
+﻿using CMS.Application.Interfaces.Configuration;
+using CMS_Backend.Services.Configuration;
 
 namespace CMS.Api.Services;
 

@@ -1,11 +1,11 @@
 ﻿using CMS.Domain.Models;
-using CMS.Api.Models.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Collections.Generic;
 using CMS.Domain.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 
 namespace CMS.Api.Helpers
 {

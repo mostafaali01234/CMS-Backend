@@ -1,5 +1,5 @@
-using CMS.Api.Models.DTOs.Requests;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.DTOs.Requests;
+using CMS.Application.Interfaces.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

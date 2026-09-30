@@ -1,8 +1,8 @@
 ﻿// Services/SupplierService.cs
 using CMS.Api.Data;
 using CMS.Domain.Models;
-using CMS.Api.Models.DTOs.Responses;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.DTOs.Responses;
+using CMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text.RegularExpressions;

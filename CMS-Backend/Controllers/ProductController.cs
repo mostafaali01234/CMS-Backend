@@ -1,6 +1,6 @@
 using CMS.Domain.Models;
-using CMS.Api.Models.DTOs;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.DTOs;
+using CMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

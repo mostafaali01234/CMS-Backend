@@ -1,7 +1,7 @@
-﻿using CMS.Api.Configuration;
+﻿using CMS.Application.DTOs;
 using CMS.Api.Data;
 using CMS.Domain.Models;
-using CMS.Api.Models.DTOs.Responses;
+using CMS.Application.DTOs.Responses;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +11,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.Interfaces;
 
 namespace CMS.Api.Services;
 

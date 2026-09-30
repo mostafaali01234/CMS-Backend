@@ -1,7 +1,8 @@
-﻿using CMS.Api.Models.DTOs.Requests;
-using CMS.Api.Models.DTOs.Responses;
+﻿using CMS.Application.DTOs.Requests;
+using CMS.Application.DTOs.Responses;
 using Microsoft.AspNetCore.Identity;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 
 namespace CMS.Api.Services;
 

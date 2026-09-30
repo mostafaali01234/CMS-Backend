@@ -1,17 +1,18 @@
-using CMS.Api.Configuration;
 using CMS.Api.Data;
 using CMS.Api.Helpers;
 using CMS.Api.Middleware;
 using CMS.Domain.Models;
 using CMS.Api.Models.Interfaces;
 using CMS.Api.Services;
-using CMS.Api.Services.Interfaces;
+using CMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+using CMS.Application.DTOs;
+using CMS.Application.Interfaces.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 

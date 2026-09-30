@@ -1,4 +1,4 @@
-using CMS.Api.Models.DTOs.Responses;
+using CMS.Application.DTOs.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CMS.Api.Controllers;
