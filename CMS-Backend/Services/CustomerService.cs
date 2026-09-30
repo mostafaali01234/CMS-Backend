@@ -7,12 +7,13 @@ using CMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text.RegularExpressions;
+using CMS.Application.Interfaces.Configuration;
 
 namespace CMS.Api.Services;
 
 public class CustomerService : ICustomerService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<CustomerService> _logger;
 
     private const int NameMaxLength = 150;
@@ -23,7 +24,7 @@ public class CustomerService : ICustomerService
     private static readonly Regex PhoneRegex = new(@"^[0-9+\-\s()]{6,20}$", RegexOptions.Compiled);
 
     public CustomerService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<CustomerService> logger)
     {
         _dbContext = dbContext;

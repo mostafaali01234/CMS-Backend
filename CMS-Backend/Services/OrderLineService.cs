@@ -1,4 +1,4 @@
-﻿using CMS.Api.Data;
+﻿using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -8,13 +8,13 @@ namespace CMS.Api.Services;
 
 public class OrderLineService : IOrderLineService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<OrderLineService> _logger;
 
     private const int NameMaxLength = 100;
 
     public OrderLineService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<OrderLineService> logger)
     {
         _dbContext = dbContext;

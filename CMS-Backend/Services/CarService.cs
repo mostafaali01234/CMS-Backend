@@ -6,12 +6,13 @@ using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using CMS.Application.Interfaces.Configuration;
 
 namespace CMS.Api.Services;
 
 public class CarService : ICarService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<CarService> _logger;
 
     private const int NameMaxLength = 150;
@@ -24,7 +25,7 @@ public class CarService : ICarService
     private const int ChassisNumberMaxLength = 100;
 
     public CarService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<CarService> logger)
     {
         _dbContext = dbContext;

@@ -1,4 +1,5 @@
-﻿using CMS.Api.Data;
+﻿
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -9,13 +10,13 @@ namespace CMS.Api.Services;
 
 public class ExpenseCategoryService : IExpenseCategoryService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<ExpenseCategoryService> _logger;
 
     private const int NameMaxLength = 100;
 
     public ExpenseCategoryService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<ExpenseCategoryService> logger)
     {
         _dbContext = dbContext;

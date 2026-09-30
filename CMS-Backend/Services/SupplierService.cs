@@ -1,5 +1,5 @@
 ﻿// Services/SupplierService.cs
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -11,7 +11,7 @@ namespace CMS.Api.Services;
 
 public class SupplierService : ISupplierService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<SupplierService> _logger;
 
     private const int NameMaxLength = 150;
@@ -26,7 +26,7 @@ public class SupplierService : ISupplierService
     private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
 
     public SupplierService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<SupplierService> logger)
     {
         _dbContext = dbContext;

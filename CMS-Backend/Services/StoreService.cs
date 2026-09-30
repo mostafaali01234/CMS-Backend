@@ -1,5 +1,5 @@
 ﻿// Services/StoreService.cs
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
@@ -12,7 +12,7 @@ namespace CMS.Api.Services;
 
 public class StoreService : IStoreService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<StoreService> _logger;
 
     private const int NameMaxLength = 150;
@@ -23,7 +23,7 @@ public class StoreService : IStoreService
     private static readonly Regex PhoneRegex = new(@"^[0-9+\-\s()]{6,20}$", RegexOptions.Compiled);
 
     public StoreService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<StoreService> logger)
     {
         _dbContext = dbContext;

@@ -7,6 +7,7 @@ namespace CMS.Application.Interfaces.Configuration;
 
 public interface IAppDbContext
 {
+    DbSet<RefreshToken> RefreshTokens { get; }
     // HR
     DbSet<Department> Department { get; }
     DbSet<Job> Job { get; }

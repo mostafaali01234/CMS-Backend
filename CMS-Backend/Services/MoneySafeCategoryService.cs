@@ -1,4 +1,4 @@
-﻿using CMS.Api.Data;
+﻿using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -9,13 +9,13 @@ namespace CMS.Api.Services;
 
 public class MoneySafeCategoryService : IMoneySafeCategoryService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<MoneySafeCategoryService> _logger;
 
     private const int NameMaxLength = 100;
 
     public MoneySafeCategoryService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<MoneySafeCategoryService> logger)
     {
         _dbContext = dbContext;

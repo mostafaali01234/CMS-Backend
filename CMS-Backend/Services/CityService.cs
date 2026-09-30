@@ -4,17 +4,18 @@ using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using CMS.Application.Interfaces.Configuration;
 namespace CMS.Api.Services;
 
 public class CityService : ICityService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<CityService> _logger;
 
     private const int NameMaxLength = 100;
 
     public CityService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<CityService> logger)
     {
         _dbContext = dbContext;

@@ -1,4 +1,4 @@
-﻿using CMS.Api.Data;
+﻿using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
@@ -11,7 +11,7 @@ namespace CMS.Api.Services;
 
 public class ProductService : IProductService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<ProductService> _logger;
 
     private const int NameMaxLength = 150;
@@ -19,7 +19,7 @@ public class ProductService : IProductService
     private const int DescriptionMaxLength = 2000;
 
     public ProductService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<ProductService> logger)
     {
         _dbContext = dbContext;

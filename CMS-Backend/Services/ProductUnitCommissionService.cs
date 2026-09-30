@@ -1,5 +1,5 @@
 ﻿// Services/ProductUnitCommissionService.cs
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -10,7 +10,7 @@ namespace CMS.Api.Services;
 
 public class ProductUnitCommissionService : IProductUnitCommissionService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<ProductUnitCommissionService> _logger;
 
     // Commission percentages assumed to be stored as 0-100, not 0-1. Adjust if your convention differs.
@@ -18,7 +18,7 @@ public class ProductUnitCommissionService : IProductUnitCommissionService
     private const decimal MaxPercent = 100;
 
     public ProductUnitCommissionService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<ProductUnitCommissionService> logger)
     {
         _dbContext = dbContext;

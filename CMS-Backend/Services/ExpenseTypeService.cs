@@ -1,4 +1,4 @@
-﻿using CMS.Api.Data;
+﻿using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -8,13 +8,13 @@ namespace CMS.Api.Services;
 
 public class ExpenseTypeService : IExpenseTypeService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<ExpenseTypeService> _logger;
 
     private const int NameMaxLength = 100;
 
     public ExpenseTypeService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<ExpenseTypeService> logger)
     {
         _dbContext = dbContext;

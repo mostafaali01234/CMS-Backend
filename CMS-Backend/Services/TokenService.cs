@@ -1,5 +1,5 @@
 ﻿using CMS.Application.DTOs;
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using Microsoft.AspNetCore.Identity;
@@ -22,7 +22,7 @@ public class TokenService : ITokenService
 
     private readonly UserManager<IdentityUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly JwtConfig _jwtConfig;
     private readonly TokenValidationParameters _tokenValidationParameters;
     private readonly ILogger<TokenService> _logger;
@@ -30,7 +30,7 @@ public class TokenService : ITokenService
     public TokenService(
         UserManager<IdentityUser> userManager,
         RoleManager<IdentityRole> roleManager,
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         IOptionsMonitor<JwtConfig> jwtOptions,
         TokenValidationParameters tokenValidationParameters,
         ILogger<TokenService> logger)

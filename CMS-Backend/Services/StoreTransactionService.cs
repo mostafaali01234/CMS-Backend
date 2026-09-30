@@ -1,5 +1,5 @@
 ﻿// Services/StoreTransactionService.cs
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
@@ -11,13 +11,13 @@ namespace CMS.Api.Services;
 
 public class StoreTransactionService : IStoreTransactionService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<StoreTransactionService> _logger;
 
     private const int NotesMaxLength = 2000;
 
     public StoreTransactionService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<StoreTransactionService> logger)
     {
         _dbContext = dbContext;

@@ -1,4 +1,4 @@
-﻿using CMS.Api.Data;
+﻿using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -9,13 +9,13 @@ namespace CMS.Api.Services;
 
 public class JobService : IJobService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<JobService> _logger;
 
     private const int NameMaxLength = 100;
 
     public JobService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<JobService> logger)
     {
         _dbContext = dbContext;

@@ -1,17 +1,20 @@
-﻿using CMS.Api.Data;
-using CMS.Domain.Models;
+﻿
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
+using CMS.Domain.Enums;
+using CMS.Domain.Models;
+using CMS_Backend.Services.Configuration;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Text.RegularExpressions;
-using CMS.Domain.Enums;
 namespace CMS.Api.Services;
 
 public class EmployeeService : IEmployeeService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IUserLookup _userLookup;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<EmployeeService> _logger;
 
     private const int NameMaxLength = 150;
@@ -23,10 +26,12 @@ public class EmployeeService : IEmployeeService
     private static readonly Regex PhoneRegex = new(@"^[0-9+\-\s()]{6,20}$", RegexOptions.Compiled);
 
     public EmployeeService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
+        IUserLookup userLookup,
         ILogger<EmployeeService> logger)
     {
         _dbContext = dbContext;
+        _userLookup = userLookup;
         _logger = logger;
     }
 
@@ -38,7 +43,7 @@ public class EmployeeService : IEmployeeService
         return
             from e in _dbContext.Employee.AsNoTracking()
             where !e.IsDeleted
-            join u in _dbContext.Users on e.UserId equals u.Id into userJoin
+            join u in _userLookup.Query() on e.UserId equals u.Id into userJoin
             from u in userJoin.DefaultIfEmpty()
             select new EmployeeDto
             {
@@ -175,7 +180,8 @@ public class EmployeeService : IEmployeeService
         // --- UserId (optional, but if present must exist and be unique per employee) ---
         if (!string.IsNullOrWhiteSpace(employee.UserId))
         {
-            var userExists = await _dbContext.Users.AnyAsync(u => u.Id == employee.UserId);
+            //var userExists = await _dbContext.Users.AnyAsync(u => u.Id == employee.UserId);
+            var userExists = await _userLookup.ExistsAsync(employee.UserId);
             if (!userExists)
                 return $"User account with Id {employee.UserId} was not found";
 

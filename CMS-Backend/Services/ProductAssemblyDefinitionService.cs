@@ -1,5 +1,5 @@
 ﻿// Services/ProductAssemblyDefinitionService.cs
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
@@ -11,11 +11,11 @@ namespace CMS.Api.Services;
 
 public class ProductAssemblyDefinitionService : IProductAssemblyDefinitionService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<ProductAssemblyDefinitionService> _logger;
 
     public ProductAssemblyDefinitionService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<ProductAssemblyDefinitionService> logger)
     {
         _dbContext = dbContext;

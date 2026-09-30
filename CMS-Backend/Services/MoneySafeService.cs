@@ -1,5 +1,5 @@
 ﻿// Services/MoneySafeService.cs
-using CMS.Api.Data;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
@@ -10,14 +10,14 @@ namespace CMS.Api.Services;
 
 public class MoneySafeService : IMoneySafeService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IAppDbContext _dbContext;
     private readonly ILogger<MoneySafeService> _logger;
 
     private const int NameMaxLength = 150;
     private const int NotesMaxLength = 2000;
 
     public MoneySafeService(
-        AppDbContext dbContext,
+        IAppDbContext dbContext,
         ILogger<MoneySafeService> logger)
     {
         _dbContext = dbContext;
