@@ -18,5 +18,5 @@ namespace CMS_Backend.Models.DTOs.Responses
     
     // Replaces RegistrationResponse/AuthResult on the wire. Errors now travel as ProblemDetails,
     // so there is no Success/Errors here. JSON: { "token": "...", "refreshToken": "..." }
-    public record AuthTokensDto(string Token, string RefreshToken);
+    public record AuthTokensDto(string Token, string RefreshToken, long EmployeeId);
 }

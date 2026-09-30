@@ -37,6 +37,10 @@ namespace CMS_Backend.Data
         public  DbSet<MoneySafeCategory> MoneySafeCategory { get; set; }
         public  DbSet<MoneySafe> MoneySafe { get; set; }
         public  DbSet<MoneySafeTransaction> MoneySafeTransaction { get; set; }
+        public  DbSet<Order> Order { get; set; }
+        public  DbSet<OrderItem> OrderItem { get; set; }
+        public  DbSet<OrderTechHistory> OrderTechHistory { get; set; }
+        public  DbSet<OrderNoteHistory> OrderNoteHistory { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -147,6 +151,35 @@ namespace CMS_Backend.Data
                  .WithMany()
                  .HasForeignKey(x => x.InMoneySafeId)
                  .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Order>(e =>
+            {
+                e.HasOne(x => x.Seller).WithMany().HasForeignKey(x => x.SellerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.City).WithMany().HasForeignKey(x => x.CityId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<OrderTechHistory>(e =>
+            {
+                e.HasOne(x => x.Tech).WithMany().HasForeignKey(x => x.TechId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<OrderNoteHistory>(e =>
+            {
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<OrderItem>(e =>
+            {
+                e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+                e.Property(x => x.ProductPrice).HasPrecision(18, 2);
+                e.Property(x => x.ProductQuantity).HasPrecision(18, 3); // decide precision if quantities can be fractional
+                e.Property(x => x.ProductTotal).HasPrecision(18, 2);
+                e.Property(x => x.ProductDiscount).HasPrecision(18, 2);
+                e.Property(x => x.ProductNetTotal).HasPrecision(18, 2);
             });
         }
     }

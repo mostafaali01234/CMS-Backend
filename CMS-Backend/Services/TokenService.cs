@@ -74,7 +74,9 @@ public class TokenService : ITokenService
         _dbContext.RefreshTokens.Add(refreshToken);
         await _dbContext.SaveChangesAsync();
 
-        return new AuthTokensDto(jwtHandler.WriteToken(token), refreshToken.Token);
+        var employeeId = (await _dbContext.Employee.FirstOrDefaultAsync(z => z.UserId == user.Id && !z.IsDeleted))?.Id ?? 0;
+
+        return new AuthTokensDto(jwtHandler.WriteToken(token), refreshToken.Token, employeeId);
     }
 
     public async Task<ServiceResult<AuthTokensDto>> RefreshTokensAsync(string accessToken, string refreshToken)
