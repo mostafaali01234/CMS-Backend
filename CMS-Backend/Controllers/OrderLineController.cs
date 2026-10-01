@@ -3,6 +3,7 @@ using CMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CMS_Backend.Controllers.Base;
 
 namespace CMS.Api.Controllers;
 

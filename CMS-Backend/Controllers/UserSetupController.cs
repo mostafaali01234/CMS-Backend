@@ -1,5 +1,6 @@
 ﻿using CMS.Application.DTOs.Requests;
 using CMS.Application.Interfaces;
+using CMS_Backend.Controllers.Base;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

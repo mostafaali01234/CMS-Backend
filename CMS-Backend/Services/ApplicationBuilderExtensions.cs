@@ -1,6 +1,6 @@
-﻿using CMS.Api.Helpers;
+﻿using CMS.Api.Middleware;
 
-namespace CMS.Api.Services;
+namespace CMS.Application.Services;
 
 public static class ApplicationBuilderExtensions
 {

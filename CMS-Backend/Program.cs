@@ -1,12 +1,9 @@
-using CMS.Api.Data;
-using CMS.Api.Helpers;
+using CMS.Infrastructure.Persistence;
 using CMS.Api.Middleware;
-using CMS.Api.Models.Interfaces;
+using CMS.Application.Interfaces;
 using CMS.Api.Services;
 using CMS.Application.DTOs;
-using CMS.Application.Interfaces;
 using CMS.Application.Interfaces.Configuration;
-using CMS.Domain.Models;
 using CMS_Backend.Services.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -14,6 +11,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+using CMS.Application.Services;
+using CMS.Infrastructure.Identity;
+using CMS.Infrastructure.Auditing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,7 +54,7 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
         options.SignIn.RequireConfirmedAccount = true
         ).AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 
 //builder.Services.AddScoped<IAppDbContext>(p => p.GetRequiredService<AppDbContext>());
 builder.Services.AddScoped<IAppDbContext, AppDbContext>();
@@ -93,7 +93,8 @@ builder.Services.AddCorrelationIdManager();
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sql => sql.EnableRetryOnFailure())
+        sql => sql.MigrationsAssembly("CMS.Infrastructure"))
+        //sql => sql.EnableRetryOnFailure())
     .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
 builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfig"));
 

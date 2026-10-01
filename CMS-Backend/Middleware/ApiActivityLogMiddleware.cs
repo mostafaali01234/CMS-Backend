@@ -1,5 +1,5 @@
-﻿using CMS.Api.Data;
-using CMS.Api.Helpers;
+﻿using CMS.Infrastructure.Persistence;
+using CMS.Infrastructure.Helpers;
 using CMS.Domain.Models;
 using System.Diagnostics;
 

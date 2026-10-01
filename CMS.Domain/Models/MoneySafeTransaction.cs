@@ -1,5 +1,5 @@
 ﻿using CMS.Domain.Enums;
-using CMS.Domain.Interfaces;
+using CMS.Domain.Common;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 

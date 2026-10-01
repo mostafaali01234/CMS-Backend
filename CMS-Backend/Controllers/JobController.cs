@@ -3,6 +3,7 @@ using CMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CMS_Backend.Controllers.Base;
 
 namespace CMS.Api.Controllers;
 
@@ -10,7 +11,7 @@ namespace CMS.Api.Controllers;
 [Route("api/[controller]")]
 //[Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
-//[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
 public class JobController : ApiControllerBase
 {
 
