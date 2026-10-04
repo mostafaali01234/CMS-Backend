@@ -12,6 +12,9 @@ public interface IAppDbContext
     DbSet<Department> Department { get; }
     DbSet<Job> Job { get; }
     DbSet<Employee> Employee { get; }
+    DbSet<EmployeeLoan> EmployeeLoan { get; }
+    DbSet<EmployeeLoanInstallment> EmployeeLoanInstallment { get; }
+    DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; }
 
     // Geography
     DbSet<CountryState> CountryState { get; }
@@ -40,6 +43,7 @@ public interface IAppDbContext
     // Finance
     DbSet<ExpenseCategory> ExpenseCategory { get; }
     DbSet<ExpenseType> ExpenseType { get; }
+    DbSet<Expense> Expense { get; }
     DbSet<MoneySafeType> MoneySafeType { get; }
     DbSet<MoneySafeCategory> MoneySafeCategory { get; }
     DbSet<MoneySafe> MoneySafe { get; }

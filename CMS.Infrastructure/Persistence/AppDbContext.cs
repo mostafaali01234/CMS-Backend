@@ -16,6 +16,9 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<Department> Department { get; set; }
         public  DbSet<Job> Job { get; set; }
         public  DbSet<Employee> Employee { get; set; }
+        public  DbSet<EmployeeLoan> EmployeeLoan { get; set; }
+        public  DbSet<EmployeeLoanInstallment> EmployeeLoanInstallment { get; set; }
+        public  DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; set; }
         public  DbSet<CountryState> CountryState { get; set; }
         public  DbSet<City> City { get; set; }
         public  DbSet<Product> Product { get; set; }
@@ -34,6 +37,7 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<Project> Project { get; set; }
         public  DbSet<ExpenseCategory> ExpenseCategory { get; set; }
         public  DbSet<ExpenseType> ExpenseType { get; set; }
+        public  DbSet<Expense> Expense { get; set; }
         public  DbSet<OrderLine> OrderLine { get; set; }
         public  DbSet<MoneySafeType> MoneySafeType { get; set; }
         public  DbSet<MoneySafeCategory> MoneySafeCategory { get; set; }
@@ -198,6 +202,15 @@ namespace CMS.Infrastructure.Persistence
                    .WithMany()
                    .HasForeignKey(e => e.UserId)
                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Expense>(e =>
+            {
+                e.Property(x => x.Amount).HasPrecision(18, 4);
+                e.Property(x => x.AmountCurrency).HasPrecision(18, 4);
+                e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.ExpenseType).WithMany().HasForeignKey(x => x.ExpenseTypeId).OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
