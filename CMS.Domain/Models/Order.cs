@@ -73,6 +73,8 @@ namespace CMS.Domain.Models
 
 
         public virtual ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+        public virtual ICollection<OrderNoteHistory> Notes { get; set; } = new List<OrderNoteHistory>();
+        public virtual ICollection<OrderTechHistory> TechHistory { get; set; } = new List<OrderTechHistory>();
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }
