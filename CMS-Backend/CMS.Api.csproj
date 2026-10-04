@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CMS.Application\CMS.Application.csproj" />
+    <ProjectReference Include="..\CMS.Domain\CMS.Domain.csproj" />
     <ProjectReference Include="..\CMS.Infrastructure\CMS.Infrastructure.csproj" />
   </ItemGroup>
 
