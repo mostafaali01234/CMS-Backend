@@ -48,6 +48,8 @@ public interface IAppDbContext
     DbSet<MoneySafeCategory> MoneySafeCategory { get; }
     DbSet<MoneySafe> MoneySafe { get; }
     DbSet<MoneySafeTransaction> MoneySafeTransaction { get; }
+    DbSet<CustomerPayment> CustomerPayment { get; }
+    DbSet<SupplierPayment> SupplierPayment { get; }
 
     // Sales
     DbSet<Order> Order { get; }
@@ -55,6 +57,16 @@ public interface IAppDbContext
     DbSet<OrderLine> OrderLine { get; }
     DbSet<OrderTechHistory> OrderTechHistory { get; }
     DbSet<OrderNoteHistory> OrderNoteHistory { get; }
+    
+    //Feedback
+    DbSet<FeedbackQuestion> FeedbackQuestion { get; }
+    
+    //Invoice
+    DbSet<BuyInvoice> BuyInvoice { get; }
+    DbSet<BuyInvoiceItem> BuyInvoiceItem { get; }
+    DbSet<SaleInvoice> SaleInvoice { get; }
+    DbSet<SaleInvoiceItem> SaleInvoiceItem { get; }
+
 
     // Add only if your services use them
     DatabaseFacade Database { get; }

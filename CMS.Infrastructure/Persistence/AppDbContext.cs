@@ -10,7 +10,8 @@ namespace CMS.Infrastructure.Persistence
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-        public  DbSet<ApiActivityLog> ApiActivityLog { get; set; }
+        #region DbSet
+        public DbSet<ApiActivityLog> ApiActivityLog { get; set; }
         public  DbSet<ApiDataChangeLog> ApiDataChangeLog { get; set; }
         public  DbSet<RefreshToken> RefreshTokens { get; set; }
         public  DbSet<Department> Department { get; set; }
@@ -47,7 +48,15 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<OrderItem> OrderItem { get; set; }
         public  DbSet<OrderTechHistory> OrderTechHistory { get; set; }
         public  DbSet<OrderNoteHistory> OrderNoteHistory { get; set; }
+        public  DbSet<FeedbackQuestion> FeedbackQuestion { get; set; }
+        public  DbSet<SaleInvoice> SaleInvoice { get; set; }
+        public  DbSet<SaleInvoiceItem> SaleInvoiceItem { get; set; }
+        public  DbSet<BuyInvoice> BuyInvoice { get; set; }
+        public  DbSet<BuyInvoiceItem> BuyInvoiceItem { get; set; }
+        public  DbSet<CustomerPayment> CustomerPayment { get; set; }
+        public  DbSet<SupplierPayment> SupplierPayment { get; set; }
 
+        #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -211,6 +220,63 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.ExpenseType).WithMany().HasForeignKey(x => x.ExpenseTypeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<BuyInvoice>(e =>
+            {
+                e.Property(x => x.Total).HasPrecision(18, 2);
+                e.Property(x => x.Discount).HasPrecision(18, 2);
+                e.Property(x => x.NetTotal).HasPrecision(18, 2);
+                e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2); 
+                e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.OriginalInvoice).WithMany().HasForeignKey(x => x.OriginalInvoiceId).OnDelete(DeleteBehavior.ClientSetNull);
+            });
+            modelBuilder.Entity<SaleInvoice>(e =>
+            {
+                e.Property(x => x.Total).HasPrecision(18, 2);
+                e.Property(x => x.Discount).HasPrecision(18, 2);
+                e.Property(x => x.NetTotal).HasPrecision(18, 2);
+                e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2); 
+                e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+                modelBuilder.Entity<BuyInvoice>().HasIndex(x => x.OrderId).IsUnique().HasFilter("[order_id] IS NOT NULL");
+            });
+            modelBuilder.Entity<BuyInvoiceItem>(e =>
+            {
+                e.Property(x => x.ProductPrice).HasPrecision(18, 2);
+                e.Property(x => x.ProductQuantity).HasPrecision(18, 3);
+                e.Property(x => x.ProductTotal).HasPrecision(18, 2);
+                e.Property(x => x.ProductDiscount).HasPrecision(18, 2);
+                e.Property(x => x.ProductNetTotal).HasPrecision(18, 2); 
+                e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<SaleInvoiceItem>(e =>
+            {
+                e.Property(x => x.ProductPrice).HasPrecision(18, 2);
+                e.Property(x => x.ProductQuantity).HasPrecision(18, 3);
+                e.Property(x => x.ProductTotal).HasPrecision(18, 2);
+                e.Property(x => x.ProductDiscount).HasPrecision(18, 2);
+                e.Property(x => x.ProductNetTotal).HasPrecision(18, 2);
+                e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<SupplierPayment>(e =>
+            {
+                e.Property(x => x.Amount).HasPrecision(18, 4);
+                e.Property(x => x.AmountCurrency).HasPrecision(18, 4);
+                e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<CustomerPayment>(e =>
+            {
+                e.Property(x => x.Amount).HasPrecision(18, 4);
+                e.Property(x => x.AmountCurrency).HasPrecision(18, 4);
+                e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

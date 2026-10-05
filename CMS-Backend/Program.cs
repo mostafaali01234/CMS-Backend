@@ -76,7 +76,11 @@ builder.Services.AddScoped<IProductAssemblyDefinitionService, ProductAssemblyDef
 builder.Services.AddScoped<IProductAssemblyOperationService, ProductAssemblyOperationService>();
 builder.Services.AddScoped<IProductUnitCommissionService, ProductUnitCommissionService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<ISupplierPaymentService, SupplierPaymentService>();
+builder.Services.AddScoped<IBuyInvoiceService, BuyInvoiceService>();
+builder.Services.AddScoped<ISaleInvoiceService, SaleInvoiceService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ICustomerPaymentService, CustomerPaymentService>();
 builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IStoreTransactionService, StoreTransactionService>();
