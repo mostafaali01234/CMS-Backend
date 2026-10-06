@@ -51,6 +51,9 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("arrange_order")]
         public int? ArrangeOrder { get; set; }
 
+        [JsonPropertyName("inspection_commission_deduction_percent")]
+        public int InspectionCommissionDeductionPercent { get; set; } = 0;
+
 
 
         [JsonPropertyName("created_at_utc")]

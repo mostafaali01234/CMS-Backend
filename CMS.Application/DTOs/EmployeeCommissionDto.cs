@@ -12,6 +12,9 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("commission_total")]
         public decimal CommissionTotal { get; set; }
 
+        [JsonPropertyName("special_commission_total")]
+        public decimal SpecialCommissionTotal { get; set; }
+
         [JsonPropertyName("sales_total")]
         public decimal SalesTotal { get; set; }
 

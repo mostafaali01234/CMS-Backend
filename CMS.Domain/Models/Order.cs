@@ -25,6 +25,9 @@ namespace CMS.Domain.Models
         [Column(name: "type")]
         public OrderType Type { get; set; }
 
+        [Column(name: "category")]
+        public OrderCategory Category { get; set; }
+
         //[Precision(18, 2)]
         [Column(name: "total")]
         public decimal Total { get; set; }
@@ -71,6 +74,10 @@ namespace CMS.Domain.Models
         [Column(name: "attachment_image")]
         public string AttachmentImage { get; set; } = string.Empty;
 
+        [Column(name: "old_order_id")]
+        public long? OldOrderId { get; set; }
+        [ForeignKey(nameof(OldOrderId))]
+        public virtual Order? OldOrder { get; set; }
 
         public virtual ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
         public virtual ICollection<OrderNoteHistory> Notes { get; set; } = new List<OrderNoteHistory>();

@@ -16,6 +16,8 @@ public interface IAppDbContext
     DbSet<EmployeeLoanInstallment> EmployeeLoanInstallment { get; }
     DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; }
     DbSet<EmployeeCommission> EmployeeCommission { get; }
+    DbSet<EmployeeSpecialCommission> EmployeeSpecialCommission { get; }
+    DbSet<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; }
     DbSet<EmployeePayroll> EmployeePayroll { get; }
 
     // Geography

@@ -56,6 +56,12 @@ namespace CMS.Domain.Models
         [Column(name: "arrange_order")]
         public int? ArrangeOrder { get; set; }
 
+        [Column(name: "inspection_commission_deduction_percent")]
+        public int InspectionCommissionDeductionPercent { get; set; } = 0;
+
+
+        public virtual ICollection<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; set; } = new List<EmployeeSpecialCommissionDefinition>();
+
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

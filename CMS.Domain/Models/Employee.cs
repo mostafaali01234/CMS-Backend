@@ -91,6 +91,8 @@ namespace CMS.Domain.Models
         public string EducationSpec { get; set; } = string.Empty;
 
 
+        public virtual ICollection<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; set; } = new List<EmployeeSpecialCommissionDefinition>();
+
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

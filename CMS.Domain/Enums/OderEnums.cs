@@ -18,6 +18,13 @@
         تركيب,
         نص_جملة
     }
+    public enum OrderCategory
+    {
+        تركيب,
+        شحن,
+        صيانة,
+        معاينة
+    }
     public enum OrderStatus
     {
         جديد,

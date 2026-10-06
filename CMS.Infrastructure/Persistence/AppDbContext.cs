@@ -22,6 +22,8 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; set; }
         public  DbSet<EmployeePayroll> EmployeePayroll { get; set; }
         public  DbSet<EmployeeCommission> EmployeeCommission { get; set; }
+        public  DbSet<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; set; }
+        public  DbSet<EmployeeSpecialCommission> EmployeeSpecialCommission { get; set; }
         public  DbSet<CountryState> CountryState { get; set; }
         public  DbSet<City> City { get; set; }
         public  DbSet<Product> Product { get; set; }
@@ -234,6 +236,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.OriginalInvoice).WithMany().HasForeignKey(x => x.OriginalInvoiceId).OnDelete(DeleteBehavior.ClientSetNull);
             });
+            
             modelBuilder.Entity<SaleInvoice>(e =>
             {
                 e.Property(x => x.Total).HasPrecision(18, 2);
@@ -244,6 +247,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
                 modelBuilder.Entity<BuyInvoice>().HasIndex(x => x.OrderId).IsUnique().HasFilter("[order_id] IS NOT NULL");
             });
+            
             modelBuilder.Entity<BuyInvoiceItem>(e =>
             {
                 e.Property(x => x.ProductPrice).HasPrecision(18, 2);
@@ -254,6 +258,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
             });
+            
             modelBuilder.Entity<SaleInvoiceItem>(e =>
             {
                 e.Property(x => x.ProductPrice).HasPrecision(18, 2);
@@ -264,6 +269,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
             });
+            
             modelBuilder.Entity<SupplierPayment>(e =>
             {
                 e.Property(x => x.Amount).HasPrecision(18, 4);
@@ -272,6 +278,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
             });
+            
             modelBuilder.Entity<CustomerPayment>(e =>
             {
                 e.Property(x => x.Amount).HasPrecision(18, 4);
@@ -307,6 +314,33 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.WithdrawnBy).WithMany().HasForeignKey(x => x.WithdrawnById).OnDelete(DeleteBehavior.ClientSetNull);
                 e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.ClientSetNull);
             });
+
+            modelBuilder.Entity<EmployeeSpecialCommission>(e =>
+            {
+                e.HasOne(x => x.Manager).WithMany().HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+
+                e.Property(x => x.SalesTotal).HasPrecision(18, 2);
+                e.Property(x => x.CommissionRate).HasPrecision(5, 4); 
+                e.Property(x => x.CommissionTotal).HasPrecision(18, 2);
+            });
+
+            modelBuilder.Entity<EmployeeSpecialCommissionDefinition>(e =>
+            {
+                e.HasMany(x => x.Employees)
+                 .WithMany(x => x.EmployeeSpecialCommissionDefinition)
+                 .UsingEntity(j => j.ToTable("employee_special_commission_definition_employee"));
+
+                e.HasMany(x => x.Products)
+                 .WithMany(x => x.EmployeeSpecialCommissionDefinition)
+                 .UsingEntity(j => j.ToTable("employee_special_commission_definition_product"));
+
+                e.HasOne(x => x.Manager).WithMany().HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
+
+                e.Property(x => x.CommissionRate).HasPrecision(5, 4);
+            });
+
+
         }
     }
 }

@@ -33,6 +33,13 @@ public class OrderService : IOrderService
         _logger = logger;
     }
 
+    private string getOrderCategory(Order order)
+    {
+        return order.Category.ToString() == "تركيب" ? 
+                (order.Items.OrderByDescending(z => z.ProductNetTotal).FirstOrDefault()?.Product?.Category?.Name ?? "تركيب") 
+                : order.Category.ToString();
+    }
+
     private OrderDto ToDto(Order order)
     {
         return new OrderDto
@@ -41,6 +48,7 @@ public class OrderService : IOrderService
             InstallationDate = order.InstallationDate,
             Status = order.Status,
             Source = order.Source,
+            Category = getOrderCategory(order),
             Type = order.Type,
             Total = order.Total,
             Discount = order.Discount,
@@ -56,7 +64,7 @@ public class OrderService : IOrderService
             SellerId = order.SellerId,
             SellerName = order.Seller?.Name ?? "",
             TechId = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current)?.TechId ?? 0,
-            TechName = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current)?.Tech.Name ?? "",
+            TechName = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current)?.Tech?.Name ?? "",
             AuditorId = order.AuditorId,
             AuditorName = order.Auditor?.Name ?? "",
             AttachmentImage = order.AttachmentImage,
@@ -82,6 +90,7 @@ public class OrderService : IOrderService
                 CreatedAtUtc = n.CreatedAtUtc,
                 CreatedBy = n.CreatedBy ?? ""
             }).ToList() ?? new List<OrderNoteHistoryDto>(),
+            OldOrderId = order.OldOrderId
         };
     }
 

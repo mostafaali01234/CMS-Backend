@@ -13,13 +13,19 @@ namespace CMS.Application.Services;
 public class EmployeeCommissionService : IEmployeeCommissionService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IEmployeeService _empService;
+    private readonly IEmployeeSpecialCommissionService _spCommService;
     private readonly ILogger<EmployeeCommissionService> _logger;
 
     public EmployeeCommissionService(
         IAppDbContext dbContext,
+        IEmployeeService empService,
+        IEmployeeSpecialCommissionService spCommService,
         ILogger<EmployeeCommissionService> logger)
     {
         _dbContext = dbContext;
+        _empService = empService;
+        _spCommService = spCommService;
         _logger = logger;
     }
 
@@ -166,9 +172,9 @@ public class EmployeeCommissionService : IEmployeeCommissionService
     {
         if (employeeId <= 0)
             return ServiceResult<CommissionPageDto>.Failed("A valid employee Id is required");
-        var employee = await _dbContext.Employee
-            .FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsDeleted);
-        if (employee == null)
+
+        var employee = await _empService.GetByIdAsync(employeeId);
+        if (employee == null || employee.Data == null)
             return ServiceResult<CommissionPageDto>.Failed($"Employee with Id {employeeId} was not found");
 
         if (month < 1 || month > 12)
@@ -196,8 +202,9 @@ public class EmployeeCommissionService : IEmployeeCommissionService
             SalesTotal = list.Where(c => c.EmployeeRole == CommissionRole.Sales).Sum(c => c.Amount + c.ExtraAmount),
             TechCommissions = list.Where(c => c.EmployeeRole == CommissionRole.Tech).ToList(),
             TechTotal = list.Where(c => c.EmployeeRole == CommissionRole.Tech).Sum(c => c.Amount + c.ExtraAmount),
-            EmployeeBaseSalary = employee.Salary,
-            InvoicesTotal = items.Select(z => z.Invoice)?.Distinct().Sum(c => c?.NetTotal ?? 0) ?? 0
+            EmployeeBaseSalary = employee.Data.Salary,
+            InvoicesTotal = items.Select(z => z.Invoice)?.Distinct().Sum(c => c?.NetTotal ?? 0) ?? 0,
+            SpecialCommissionTotal = (await _spCommService.GetByEmployeeIdAsync(employeeId, year, month))?.Data?.Sum(c => c.CommissionTotal) ?? 0
         };
 
         return ServiceResult<CommissionPageDto>.Ok(result);

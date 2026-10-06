@@ -21,6 +21,9 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("type")]
         public OrderType Type { get; set; }
 
+        [JsonPropertyName("category")]
+        public string Category { get; set; } = string.Empty;
+
         [JsonPropertyName("total")]
         public decimal Total { get; set; }
 
@@ -92,6 +95,9 @@ namespace CMS.Application.DTOs
 
         [JsonPropertyName("notes")]
         public List<OrderNoteHistoryDto> Notes { get; set; } = new();
+
+        [JsonPropertyName("old_order_id")]
+        public long? OldOrderId { get; set; }
     }
 
     public class OrderItemDto

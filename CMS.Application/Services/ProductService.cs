@@ -49,7 +49,8 @@ public class ProductService : IProductService
             CreatedAtUtc = product.CreatedAtUtc,
             CreatedBy = product.CreatedBy ?? "",
             UpdatedAtUtc = product.UpdatedAtUtc,
-            UpdatedBy = product.UpdatedBy ?? ""
+            UpdatedBy = product.UpdatedBy ?? "",
+            InspectionCommissionDeductionPercent = product.InspectionCommissionDeductionPercent
         };
     }
 
@@ -70,7 +71,8 @@ public class ProductService : IProductService
             HasSerial = dto.HasSerial,
             EnableCounter = dto.EnableCounter,
             EnableAddOrder = dto.EnableAddOrder,
-            ArrangeOrder = dto.ArrangeOrder
+            ArrangeOrder = dto.ArrangeOrder,
+            InspectionCommissionDeductionPercent = dto.InspectionCommissionDeductionPercent
         };
     }
 
@@ -200,19 +202,19 @@ public class ProductService : IProductService
         return ServiceResult<ProductDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, ProductDto cat)
+    public async Task<ServiceResult<bool>> UpdateAsync(long id, ProductDto dto)
     {
-        if (cat is null)
+        if (dto is null)
             return ServiceResult<bool>.Failed("Product payload is required");
 
-        if (id != cat.Id)
+        if (id != dto.Id)
             return ServiceResult<bool>.Failed("Id in the route does not match the Id in the payload");
 
         var existing = await _dbContext.Product.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         if (existing is null)
             return ServiceResult<bool>.NotFound("Product not found");
 
-        var validationError = await ValidateAsync(cat, isUpdate: true, currentId: id);
+        var validationError = await ValidateAsync(dto, isUpdate: true, currentId: id);
         if (validationError is not null)
         {
             _logger.LogWarning("Validation failed while updating product {ProductId}: {Error}", id, validationError);
@@ -220,19 +222,20 @@ public class ProductService : IProductService
         }
 
         // Update mutable fields explicitly rather than blindly overwriting audit/soft-delete fields
-        existing.Name = cat.Name;
-        existing.Description = cat.Description;
-        existing.Barcode = cat.Barcode;
-        existing.CategoryId = cat.CategoryId;
-        existing.BuyPrice = cat.BuyPrice;
-        existing.SalePrice = cat.SalePrice;
-        existing.StorageType = cat.StorageType;
-        existing.ProductType = cat.ProductType;
-        existing.Active = cat.Active;
-        existing.HasSerial = cat.HasSerial;
-        existing.EnableCounter = cat.EnableCounter;
-        existing.EnableAddOrder = cat.EnableAddOrder;
-        existing.ArrangeOrder = cat.ArrangeOrder;
+        existing.Name = dto.Name;
+        existing.Description = dto.Description;
+        existing.Barcode = dto.Barcode;
+        existing.CategoryId = dto.CategoryId;
+        existing.BuyPrice = dto.BuyPrice;
+        existing.SalePrice = dto.SalePrice;
+        existing.StorageType = dto.StorageType;
+        existing.ProductType = dto.ProductType;
+        existing.Active = dto.Active;
+        existing.HasSerial = dto.HasSerial;
+        existing.EnableCounter = dto.EnableCounter;
+        existing.EnableAddOrder = dto.EnableAddOrder;
+        existing.ArrangeOrder = dto.ArrangeOrder;
+        existing.InspectionCommissionDeductionPercent = dto.InspectionCommissionDeductionPercent;
 
         try
         {

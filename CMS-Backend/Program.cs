@@ -68,6 +68,8 @@ builder.Services.AddScoped<IStateService, StateService>();
 builder.Services.AddScoped<ICityService, CityService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IEmployeeCommissionService, EmployeeCommissionService>();
+builder.Services.AddScoped<IEmployeeSpecialCommissionService, EmployeeSpecialCommissionService>();
+builder.Services.AddScoped<IEmployeeSpecialCommissionDefinitionService, EmployeeSpecialCommissionDefinitionService>();
 builder.Services.AddScoped<IEmployeePayrollAdjustmentService, EmployeePayrollAdjustmentService>();
 builder.Services.AddScoped<IEmployeePayrollService, EmployeePayrollService>();
 builder.Services.AddScoped<IEmployeeLoanService, EmployeeLoanService>();
