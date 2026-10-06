@@ -20,6 +20,8 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<EmployeeLoan> EmployeeLoan { get; set; }
         public  DbSet<EmployeeLoanInstallment> EmployeeLoanInstallment { get; set; }
         public  DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; set; }
+        public  DbSet<EmployeePayroll> EmployeePayroll { get; set; }
+        public  DbSet<EmployeeCommission> EmployeeCommission { get; set; }
         public  DbSet<CountryState> CountryState { get; set; }
         public  DbSet<City> City { get; set; }
         public  DbSet<Product> Product { get; set; }
@@ -277,6 +279,33 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<EmployeeCommission>(e =>
+            {
+                e.Property(x => x.ProductTotal).HasPrecision(18, 2);
+                e.Property(x => x.Amount).HasPrecision(18, 2);
+                e.Property(x => x.Extra_Amount).HasPrecision(18, 2);
+                e.HasOne(x => x.Order).WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Invoice).WithMany().HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<EmployeePayroll>(e =>
+            {
+                e.Property(x => x.BaseSalary).HasPrecision(18, 2);
+                e.Property(x => x.SalesCommissionTotal).HasPrecision(18, 2);
+                e.Property(x => x.TechCommissionTotal).HasPrecision(18, 2);
+                e.Property(x => x.LoansTotal).HasPrecision(18, 2);
+                e.Property(x => x.BonusTotal).HasPrecision(18, 2);
+                e.Property(x => x.DeductionsTotal).HasPrecision(18, 2);
+                e.Property(x => x.LunchTotal).HasPrecision(18, 2);
+                e.Property(x => x.NetTotal).HasPrecision(18, 2);
+                e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.RevisedBy).WithMany().HasForeignKey(x => x.RevisedById).OnDelete(DeleteBehavior.ClientSetNull);
+                e.HasOne(x => x.WithdrawnBy).WithMany().HasForeignKey(x => x.WithdrawnById).OnDelete(DeleteBehavior.ClientSetNull);
+                e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.ClientSetNull);
             });
         }
     }

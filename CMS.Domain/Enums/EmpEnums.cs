@@ -13,4 +13,20 @@
         اعزب,
         متزوج
     }
+    public enum CommissionRole
+    {
+        Sales,
+        Tech
+    }
+    public enum CommissionStatus
+    {
+        Pending_Payment,
+        Invoice_Paid,
+        Withdrawn
+    }
+    public enum PayrollStatus
+    {
+        Revised,
+        Withdrawn
+    }
 }

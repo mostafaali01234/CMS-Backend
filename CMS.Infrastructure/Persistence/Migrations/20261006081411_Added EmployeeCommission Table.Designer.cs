@@ -4,6 +4,7 @@ using CMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006081411_Added EmployeeCommission Table")]
+    partial class AddedEmployeeCommissionTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1082,118 +1085,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("LoanId");
 
                     b.ToTable("employee_loan_installment");
-                });
-
-            modelBuilder.Entity("CMS.Domain.Models.EmployeePayroll", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<decimal>("BaseSalary")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("base_salary");
-
-                    b.Property<decimal>("BonusTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("bonus_total");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("DeductionsTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("deductions_total");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("EmployeeId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("employee_id");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal>("LoansTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("loans_total");
-
-                    b.Property<decimal>("LunchTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("lunch_total");
-
-                    b.Property<long?>("MoneySafeId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("money_safe_id");
-
-                    b.Property<int>("Month")
-                        .HasColumnType("int")
-                        .HasColumnName("month");
-
-                    b.Property<decimal>("NetTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("net_total");
-
-                    b.Property<long?>("RevisedById")
-                        .HasColumnType("bigint")
-                        .HasColumnName("revised_by_id");
-
-                    b.Property<decimal>("SalesCommissionTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("sales_commission_total");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int")
-                        .HasColumnName("status");
-
-                    b.Property<decimal>("TechCommissionTotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("tech_commission_total");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("WithdrawnAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("withdrawn_at");
-
-                    b.Property<long?>("WithdrawnById")
-                        .HasColumnType("bigint")
-                        .HasColumnName("withdrawn_by_id");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("int")
-                        .HasColumnName("year");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("MoneySafeId");
-
-                    b.HasIndex("RevisedById");
-
-                    b.HasIndex("WithdrawnById");
-
-                    b.ToTable("employee_payroll");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeePayrollAdjustment", b =>
@@ -3472,35 +3363,6 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Deduction");
 
                     b.Navigation("Loan");
-                });
-
-            modelBuilder.Entity("CMS.Domain.Models.EmployeePayroll", b =>
-                {
-                    b.HasOne("CMS.Domain.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CMS.Domain.Models.MoneySafe", "MoneySafe")
-                        .WithMany()
-                        .HasForeignKey("MoneySafeId");
-
-                    b.HasOne("CMS.Domain.Models.Employee", "RevisedBy")
-                        .WithMany()
-                        .HasForeignKey("RevisedById");
-
-                    b.HasOne("CMS.Domain.Models.Employee", "WithdrawnBy")
-                        .WithMany()
-                        .HasForeignKey("WithdrawnById");
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("MoneySafe");
-
-                    b.Navigation("RevisedBy");
-
-                    b.Navigation("WithdrawnBy");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeePayrollAdjustment", b =>
