@@ -26,6 +26,9 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("data")]
         public ExpenseDataDto? Data { get; set; }
 
+        [JsonPropertyName("shift_id")]
+        public long? ShiftId { get; set; }
+
         [JsonPropertyName("money_safe_id")]
         public long MoneySafeId { get; set; }
 

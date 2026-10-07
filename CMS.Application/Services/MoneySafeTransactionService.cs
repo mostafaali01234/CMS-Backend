@@ -46,7 +46,8 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
             CreatedAtUtc = t.CreatedAtUtc,
             CreatedBy = t.CreatedBy ?? "",
             UpdatedAtUtc = t.UpdatedAtUtc,
-            UpdatedBy = t.UpdatedBy ?? ""
+            UpdatedBy = t.UpdatedBy ?? "",
+            ShiftId = t.ShiftId,
         };
     }
 
@@ -63,7 +64,8 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
             AuditorId = dto.AuditorId,
             OutMoneySafeId = dto.OutMoneySafeId,
             InMoneySafeId = dto.InMoneySafeId,
-            ProjectId = dto.ProjectId
+            ProjectId = dto.ProjectId,
+            ShiftId = dto.ShiftId,
         };
     }
 
@@ -235,6 +237,7 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
         existing.OutMoneySafeId = dto.OutMoneySafeId;
         existing.InMoneySafeId = dto.InMoneySafeId;
         existing.ProjectId = dto.ProjectId;
+        existing.ShiftId = dto.ShiftId;
 
         try
         {

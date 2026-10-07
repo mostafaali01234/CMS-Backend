@@ -51,6 +51,10 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("net_total")]
         public decimal NetTotal { get; set; }
 
+        [JsonPropertyName("order_net_total")]
+
+        public decimal OrderNetTotal { get; set; } = 0;
+
         [JsonPropertyName("net_total_currency")]
         public decimal NetTotalCurrency { get; set; }
 
@@ -60,8 +64,14 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("remaining_amount")]
         public decimal RemainingAmount { get; set; }
 
+        [JsonPropertyName("shift_id")]
+        public long? ShiftId { get; set; }
+
         [JsonPropertyName("items")]
         public List<SaleInvoiceItemDto> Items { get; set; } = new();
+
+        [JsonPropertyName("order_items")]
+        public List<SaleInvoiceItemDto> OrderItems { get; set; } = new();
 
         [JsonPropertyName("payment")]
         public List<SaleInvoicePaymentDto> Payments { get; set; } = new();

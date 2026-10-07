@@ -48,6 +48,11 @@ namespace CMS.Domain.Models
         [ForeignKey(nameof(ProjectId))]
         public virtual Project? Project { get; set; }
 
+        [Column(name: "shift_id")]
+        public long? ShiftId { get; set; }
+        [ForeignKey(nameof(ShiftId))]
+        public virtual Shift? Shift { get; set; }
+
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

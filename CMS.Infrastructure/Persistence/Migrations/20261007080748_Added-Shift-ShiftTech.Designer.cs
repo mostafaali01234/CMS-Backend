@@ -4,6 +4,7 @@ using CMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261007080748_Added-Shift-ShiftTech")]
+    partial class AddedShiftShiftTech
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1443,9 +1446,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("shift_id");
 
-                    b.Property<long?>("ShiftId1")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1463,8 +1463,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("ShiftId1");
 
                     b.ToTable("expense");
                 });
@@ -1774,9 +1772,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("shift_id");
 
-                    b.Property<long?>("ShiftId1")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("TransactionAmount")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("transaction_amount");
@@ -1815,8 +1810,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("ShiftId1");
 
                     b.ToTable("money_safe_transaction");
                 });
@@ -2670,9 +2663,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("shift_id");
 
-                    b.Property<long?>("ShiftId1")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
@@ -2699,8 +2689,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("OriginalInvoiceId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("ShiftId1");
 
                     b.ToTable("sale_invoice");
                 });
@@ -3772,7 +3760,7 @@ namespace CMS.Infrastructure.Migrations
                         .HasForeignKey("ProjectId");
 
                     b.HasOne("CMS.Domain.Models.Shift", "Shift")
-                        .WithMany("Loans")
+                        .WithMany()
                         .HasForeignKey("ShiftId");
 
                     b.Navigation("ApprovedBy");
@@ -3903,14 +3891,9 @@ namespace CMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("CMS.Domain.Models.Shift", null)
-                        .WithMany("Expenses")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("CMS.Domain.Models.Shift", "Shift")
                         .WithMany()
-                        .HasForeignKey("ShiftId1");
+                        .HasForeignKey("ShiftId");
 
                     b.Navigation("Auditor");
 
@@ -3979,14 +3962,9 @@ namespace CMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("CMS.Domain.Models.Shift", null)
-                        .WithMany("Transactions")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("CMS.Domain.Models.Shift", "Shift")
                         .WithMany()
-                        .HasForeignKey("ShiftId1");
+                        .HasForeignKey("ShiftId");
 
                     b.Navigation("Auditor");
 
@@ -4231,14 +4209,9 @@ namespace CMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("OriginalInvoiceId");
 
-                    b.HasOne("CMS.Domain.Models.Shift", null)
-                        .WithMany("Invoices")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("CMS.Domain.Models.Shift", "Shift")
                         .WithMany()
-                        .HasForeignKey("ShiftId1");
+                        .HasForeignKey("ShiftId");
 
                     b.Navigation("Auditor");
 
@@ -4320,7 +4293,7 @@ namespace CMS.Infrastructure.Migrations
             modelBuilder.Entity("CMS.Domain.Models.ShiftTech", b =>
                 {
                     b.HasOne("CMS.Domain.Models.Shift", "Shift")
-                        .WithMany("Techs")
+                        .WithMany()
                         .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -4585,19 +4558,6 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
-                });
-
-            modelBuilder.Entity("CMS.Domain.Models.Shift", b =>
-                {
-                    b.Navigation("Expenses");
-
-                    b.Navigation("Invoices");
-
-                    b.Navigation("Loans");
-
-                    b.Navigation("Techs");
-
-                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.StoreTransaction", b =>

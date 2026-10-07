@@ -59,7 +59,8 @@ public class ExpenseService : IExpenseService
             CreatedAtUtc = e.CreatedAtUtc,
             CreatedBy = e.CreatedBy ?? "",
             UpdatedAtUtc = e.UpdatedAtUtc,
-            UpdatedBy = e.UpdatedBy ?? ""
+            UpdatedBy = e.UpdatedBy ?? "",
+            ShiftId = e.ShiftId
         };
     }
 
@@ -263,6 +264,7 @@ public class ExpenseService : IExpenseService
         existing.MoneySafeId = dto.MoneySafeId;
         existing.AuditorId = dto.AuditorId;
         existing.ProjectId = dto.ProjectId;
+        existing.ShiftId = dto.ShiftId;
 
         try
         {

@@ -56,6 +56,11 @@ namespace CMS.Domain.Models
         [Column(name: "net_total_currency")]
         public decimal NetTotalCurrency { get; set; } = decimal.Zero;
 
+        [Column(name: "shift_id")]
+        public long? ShiftId { get; set; }
+        [ForeignKey(nameof(ShiftId))]
+        public virtual Shift? Shift { get; set; }
+
         public virtual ICollection<SaleInvoiceItem> Items { get; set; } = new List<SaleInvoiceItem>();
         public virtual ICollection<CustomerPayment> Payments { get; set; } = new List<CustomerPayment>();
 

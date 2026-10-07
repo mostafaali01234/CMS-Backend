@@ -41,6 +41,7 @@ public class EmployeeLoanService : IEmployeeLoanService
             StartDate = loan.StartDate,
             Notes = loan.Notes,
             ProjectId = loan.ProjectId,
+            ShiftId = loan.ShiftId,
             ProjectName = loan.Project?.Name ?? "",
             Installments = loan.Installments
                 .Where(i => !i.IsDeleted)
@@ -231,7 +232,8 @@ public class EmployeeLoanService : IEmployeeLoanService
             InstallmentCount = hasMoneySafe ? 0 : dto.InstallmentCount,
             StartDate = dto.StartDate,
             Notes = dto.Notes,
-            ProjectId = dto.ProjectId
+            ProjectId = dto.ProjectId,
+            ShiftId = dto.ShiftId
         };
 
         if (!hasMoneySafe)
@@ -308,6 +310,7 @@ public class EmployeeLoanService : IEmployeeLoanService
             existing.StartDate = dto.StartDate;
             existing.Notes = dto.Notes;
             existing.ProjectId = dto.ProjectId;
+            existing.ShiftId = dto.ShiftId;
 
             // Replace all (still-pending) installments with a freshly generated schedule
             if (existing.Installments is { Count: > 0 })

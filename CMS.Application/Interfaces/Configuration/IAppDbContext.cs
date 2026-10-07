@@ -61,6 +61,8 @@ public interface IAppDbContext
     DbSet<OrderLine> OrderLine { get; }
     DbSet<OrderTechHistory> OrderTechHistory { get; }
     DbSet<OrderNoteHistory> OrderNoteHistory { get; }
+    DbSet<Shift> Shift { get; }
+    DbSet<ShiftTech> ShiftTech { get; }
     
     //Feedback
     DbSet<FeedbackQuestion> FeedbackQuestion { get; }

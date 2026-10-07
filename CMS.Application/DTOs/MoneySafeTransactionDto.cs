@@ -48,6 +48,9 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("project_name")]
         public string ProjectName { get; set; } = string.Empty;
 
+        [JsonPropertyName("shift_id")]
+        public long? ShiftId { get; set; }
+
         [JsonPropertyName("created_at_utc")]
         public DateTime? CreatedAtUtc { get; set; }
 

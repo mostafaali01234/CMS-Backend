@@ -50,6 +50,7 @@ public class SaleInvoiceService : ISaleInvoiceService
             NetTotalCurrency = invoice.NetTotalCurrency,
             PaidAmount = paidAmount,
             RemainingAmount = invoice.NetTotal - paidAmount,
+            ShiftId = invoice.ShiftId,
             Items = invoice.Items?.Where(i => !i.IsDeleted).Select(i => new SaleInvoiceItemDto
             {
                 Id = i.Id,
@@ -315,6 +316,7 @@ public class SaleInvoiceService : ISaleInvoiceService
             Discount = dto.Discount,
             NetTotal = dto.NetTotal,
             NetTotalCurrency = dto.NetTotalCurrency,
+            ShiftId = dto.ShiftId,
             Items = dto.Items.Select(i => new SaleInvoiceItem
             {
                 ProductId = i.ProductId,
@@ -399,6 +401,7 @@ public class SaleInvoiceService : ISaleInvoiceService
             existing.Discount = dto.Discount;
             existing.NetTotal = dto.NetTotal;
             existing.NetTotalCurrency = dto.NetTotalCurrency;
+            existing.ShiftId = dto.ShiftId;
 
             if (existing.Items is { Count: > 0 })
             {
