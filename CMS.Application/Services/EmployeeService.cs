@@ -43,8 +43,8 @@ public class EmployeeService : IEmployeeService
         return
             from e in _dbContext.Employee.AsNoTracking()
             where !e.IsDeleted
-            join u in _userLookup.Query() on e.UserId equals u.Id into userJoin
-            from u in userJoin.DefaultIfEmpty()
+            //join u in _userLookup.Query() on e.UserId equals u.Id into userJoin
+            //from u in userJoin.DefaultIfEmpty()
             select new EmployeeDto
             {
                 Id = e.Id,
@@ -55,7 +55,7 @@ public class EmployeeService : IEmployeeService
                 DepartmentId = e.DepartmentId ?? 0,
                 departmentName = e.Department != null ? e.Department.Name : "",
                 UserId = e.UserId,
-                UserEmail = u != null ? u.Email : "",
+                UserEmail = /*u != null ? u.Email : */"",
                 AdditionalAddress = e.AdditionalAddress,
                 BirthDate = e.BirthDate,
                 Education = e.Education,
@@ -87,6 +87,21 @@ public class EmployeeService : IEmployeeService
         if (birthDate.Date > today.AddYears(-age))
             age--;
         return age;
+    }
+
+    private async Task FillUserEmailsAsync(IReadOnlyCollection<EmployeeDto> dtos)
+    {
+        var ids = dtos.Where(d => !string.IsNullOrEmpty(d.UserId))
+                      .Select(d => d.UserId!)
+                      .Distinct()
+                      .ToList();
+        if (ids.Count == 0) return;
+
+        var emails = await _userLookup.GetEmailsByIdsAsync(ids);
+
+        foreach (var d in dtos)
+            if (d.UserId is not null && emails.TryGetValue(d.UserId, out var email))
+                d.UserEmail = email;
     }
 
     // Centralized validation used by both Create and Update.
@@ -159,23 +174,23 @@ public class EmployeeService : IEmployeeService
                 return "BirthDate cannot be after HireDate";
         }
 
-        // --- IdentificationNumber (required + unique) ---
-        if (string.IsNullOrWhiteSpace(employee.IdentificationNumber))
-            return "IdentificationNumber is required";
+        //// --- IdentificationNumber (required + unique) ---
+        //if (string.IsNullOrWhiteSpace(employee.IdentificationNumber))
+        //    return "IdentificationNumber is required";
 
-        if (employee.IdentificationNumber.Trim().Length > IdentificationNumberMaxLength)
-            return $"IdentificationNumber cannot exceed {IdentificationNumberMaxLength} characters";
+        //if (employee.IdentificationNumber.Trim().Length > IdentificationNumberMaxLength)
+        //    return $"IdentificationNumber cannot exceed {IdentificationNumberMaxLength} characters";
 
-        employee.IdentificationNumber = employee.IdentificationNumber.Trim();
+        //employee.IdentificationNumber = employee.IdentificationNumber.Trim();
 
-        var idQuery = _dbContext.Employee
-            .Where(e => !e.IsDeleted && e.IdentificationNumber == employee.IdentificationNumber);
+        //var idQuery = _dbContext.Employee
+        //    .Where(e => !e.IsDeleted && e.IdentificationNumber == employee.IdentificationNumber);
 
-        if (isUpdate && currentId.HasValue)
-            idQuery = idQuery.Where(e => e.Id != currentId.Value);
+        //if (isUpdate && currentId.HasValue)
+        //    idQuery = idQuery.Where(e => e.Id != currentId.Value);
 
-        if (await idQuery.AnyAsync())
-            return $"An employee with identification number '{employee.IdentificationNumber}' already exists";
+        //if (await idQuery.AnyAsync())
+        //    return $"An employee with identification number '{employee.IdentificationNumber}' already exists";
 
         // --- UserId (optional, but if present must exist and be unique per employee) ---
         if (!string.IsNullOrWhiteSpace(employee.UserId))
@@ -240,6 +255,7 @@ public class EmployeeService : IEmployeeService
     public async Task<ServiceResult<List<EmployeeDto>>> GetAllAsync()
     {
         var dtos = await QueryDtos().ToListAsync();
+        await FillUserEmailsAsync(dtos);
         return ServiceResult<List<EmployeeDto>>.Ok(dtos);
     }
 
@@ -251,6 +267,7 @@ public class EmployeeService : IEmployeeService
         var dto = await QueryDtos().FirstOrDefaultAsync(d => d.Id == id);
         if (dto is null)
             return ServiceResult<EmployeeDto?>.NotFound("Employee not found");
+        await FillUserEmailsAsync(new[] { dto });
 
         return ServiceResult<EmployeeDto?>.Ok(dto);
     }
@@ -271,6 +288,7 @@ public class EmployeeService : IEmployeeService
 
         // Reload through the shared projection so city/job/department/user email are populated on the DTO
         var created = await QueryDtos().FirstAsync(d => d.Id == emp.Id);
+        await FillUserEmailsAsync(new[] { created });
 
         return ServiceResult<EmployeeDto>.Ok(created);
     }

@@ -28,6 +28,9 @@ public class TokenService : ITokenService
     private readonly TokenValidationParameters _tokenValidationParameters;
     private readonly ILogger<TokenService> _logger;
 
+    public const string StampClaim = "sstamp";
+
+
     public TokenService(
         UserManager<IdentityUser> userManager,
         RoleManager<IdentityRole> roleManager,
@@ -146,12 +149,15 @@ public class TokenService : ITokenService
 
     private async Task<List<Claim>> BuildClaimsAsync(IdentityUser user)
     {
+        var emp = await _dbContext.Employee.FirstOrDefaultAsync(z => z.UserId == user.Id);
         var claims = new List<Claim>
         {
             new Claim("UserId", user.Id),
             new Claim(JwtRegisteredClaimNames.Email, user.Email!),
             new Claim(JwtRegisteredClaimNames.Sub, user.Email!),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Name, emp?.Name ?? ""),
+            new Claim(StampClaim, await _userManager.GetSecurityStampAsync(user) ?? ""),
         };
 
         claims.AddRange(await _userManager.GetClaimsAsync(user));

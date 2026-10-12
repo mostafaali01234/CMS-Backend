@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using CMS.Application.Interfaces;
 using Microsoft.Extensions.Logging;
+using CMS.Application.Interfaces.Configuration;
 
 namespace CMS.Infrastructure.Identity;
 
@@ -11,15 +12,18 @@ public class UserRoleService : IUserRoleService
     private readonly UserManager<IdentityUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<UserRoleService> _logger;
+    private readonly IStampStore _stamps;
 
     public UserRoleService(
         UserManager<IdentityUser> userManager,
         RoleManager<IdentityRole> roleManager,
+        IStampStore stamps,
         ILogger<UserRoleService> logger)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _logger = logger;
+        _stamps = stamps;
     }
 
     public async Task<ServiceResult<List<RoleDto>>> GetRolesAsync(CancellationToken ct = default)
@@ -84,6 +88,9 @@ public class UserRoleService : IUserRoleService
         if (!result.Succeeded)
             return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
 
+        await _userManager.UpdateSecurityStampAsync(user);   // new stamp in DB
+        await _stamps.InvalidateAsync(user.Id);        // clear Redis AFTER the DB commit
+
         _logger.LogInformation("User {UserId} added to role {RoleName}", user!.Id, roleName);
         return ServiceResult<string>.Ok("User has been added to the role");
     }
@@ -99,6 +106,9 @@ public class UserRoleService : IUserRoleService
         var result = await _userManager.RemoveFromRoleAsync(user!, roleName);
         if (!result.Succeeded)
             return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
+
+        await _userManager.UpdateSecurityStampAsync(user);   // new stamp in DB
+        await _stamps.InvalidateAsync(user.Id);        // clear Redis AFTER the DB commit
 
         _logger.LogInformation("User {UserId} removed from role {RoleName}", user!.Id, roleName);
         return ServiceResult<string>.Ok("User has been removed from the role");

@@ -11,7 +11,9 @@ using CMS_Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -43,6 +45,26 @@ builder.Services.AddAuthentication(options => {
 .AddJwtBearer(jwt => {
     jwt.SaveToken = true;
     jwt.TokenValidationParameters = tokenValidationParameters;
+    jwt.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async ctx =>
+        {
+            var userId = ctx.Principal!.FindFirstValue("UserId");
+            var tokenStamp = ctx.Principal.FindFirstValue("sstamp");
+
+            if (userId is null || tokenStamp is null)
+            {
+                ctx.Fail("Missing claims.");
+                return;
+            }
+
+            var stamps = ctx.HttpContext.RequestServices.GetRequiredService<IStampStore>();
+            var current = await stamps.GetAsync(userId);
+
+            if (current is null || current != tokenStamp)
+                ctx.Fail("Token is no longer valid.");
+        }
+    };
 });
 builder.Services.AddAuthorization(options => {
     options.AddPolicy("DepartmentPolicy", 
@@ -56,11 +78,19 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 
+builder.Services.AddStackExchangeRedisCache(o =>
+{
+    o.Configuration = builder.Configuration.GetConnectionString("Redis");
+    o.InstanceName = "myapp:";
+});
+
+
 //builder.Services.AddScoped<IAppDbContext>(p => p.GetRequiredService<AppDbContext>());
 builder.Services.AddScoped<IAppDbContext, AppDbContext>();
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IStampStore, StampStore>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IUserClaimService, UserClaimService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
@@ -105,6 +135,13 @@ builder.Services.AddScoped<IUserLookup, UserLookup>();
 
 builder.Services.AddCorrelationIdManager();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AngularDev", policy =>
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     options.UseSqlServer(
@@ -146,6 +183,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AngularDev");  
 
 app.UseAuthentication();
 

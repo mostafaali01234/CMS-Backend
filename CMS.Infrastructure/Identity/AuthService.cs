@@ -14,15 +14,18 @@ public class AuthService : IAuthService
 
     private readonly UserManager<IdentityUser> _userManager;
     private readonly ITokenService _tokenService;
+    private readonly IEmployeeService _empService;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         UserManager<IdentityUser> userManager,
         ITokenService tokenService,
+        IEmployeeService empService,
         ILogger<AuthService> logger)
     {
         _userManager = userManager;
         _tokenService = tokenService;
+        _empService = empService;
         _logger = logger;
     }
 
@@ -31,13 +34,32 @@ public class AuthService : IAuthService
         if (await _userManager.FindByEmailAsync(dto.Email) is not null)
             return ServiceResult<AuthTokensDto>.Conflict("Email already in use");
 
-        var user = new IdentityUser { Email = dto.Email, UserName = dto.UserName };
+        var user = new IdentityUser { Email = dto.Email, UserName = dto.Email.Split("@")[0] };
 
         var created = await _userManager.CreateAsync(user, dto.Password);
         if (!created.Succeeded)
             return ServiceResult<AuthTokensDto>.Failed(created.Errors.Select(e => e.Description));
 
         // The original ignored this result, so a missing "Sales" role silently left a role-less account.
+        #region AddEmployee
+        _empService.CreateAsync(new Domain.Models.Employee
+        {
+            UserId = user.Id,
+            Name = dto.UserName,
+            JobId = 1,
+            DepartmentId = 1,
+            Salary = 0,
+            OpeningBalance = 0,
+            HireDate = DateTime.Now,
+            CityId = 1,
+            MilitaryStatus = Domain.Enums.MilitaryStatus.منتهي,
+            MartialStatus = Domain.Enums.MartialStatus.اعزب,
+            Active = true,
+            AdditionalAddress = "",
+            
+        }).Wait();
+        #endregion
+
         var roleResult = await _userManager.AddToRoleAsync(user, DefaultRole);
         if (!roleResult.Succeeded)
         {
