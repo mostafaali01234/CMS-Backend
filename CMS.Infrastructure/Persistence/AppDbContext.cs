@@ -63,24 +63,27 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<ShiftTech> ShiftTech { get; set; }
 
         #endregion
-
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<StoreTransaction>(entity =>
+            modelBuilder.Entity<StoreTransaction>(e =>
             {
-                entity.HasOne(t => t.OutStore)
+                e.HasOne(t => t.OutStore)
                       .WithMany()
                       .HasForeignKey(t => t.OutStoreId)
                       .OnDelete(DeleteBehavior.NoAction);
 
-                entity.HasOne(t => t.InStore)
+                e.HasOne(t => t.InStore)
                       .WithMany()
                       .HasForeignKey(t => t.InStoreId)
                       .OnDelete(DeleteBehavior.NoAction);
 
-                entity.HasOne(t => t.Auditor)
+                e.HasOne(t => t.Auditor)
                       .WithMany()
                       .HasForeignKey(t => t.AuditorId)
                       .OnDelete(DeleteBehavior.NoAction);
@@ -88,32 +91,33 @@ namespace CMS.Infrastructure.Persistence
                 // Removed the erroneous entity.HasOne(t => t.Items) block
             });
 
-            modelBuilder.Entity<StoreTransactionItem>(entity =>
+            modelBuilder.Entity<StoreTransactionItem>(e =>
             {
-                entity.HasOne(i => i.Transaction)
+                e.HasOne(i => i.Transaction)
                       .WithMany(t => t.Items)   // <-- this line is what wires up StoreTransaction.Items
                       .HasForeignKey(i => i.TransactionId)
                       .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne(i => i.Product)
+                e.HasOne(i => i.Product)
                       .WithMany()
                       .HasForeignKey(i => i.ProductId)
                       .OnDelete(DeleteBehavior.NoAction);
             });
 
-            modelBuilder.Entity<OrderLine>()
-            .HasMany(o => o.Cities)
-            .WithMany(c => c.OrderLines)
-            .UsingEntity<Dictionary<string, object>>(
+            modelBuilder.Entity<OrderLine>(e => {
+                e.HasMany(o => o.Cities)
+                .WithMany(c => c.OrderLines)
+                .UsingEntity<Dictionary<string, object>>(
                 "order_line_city",
                 j => j.HasOne<City>().WithMany().HasForeignKey("city_id").OnDelete(DeleteBehavior.NoAction),
                 j => j.HasOne<OrderLine>().WithMany().HasForeignKey("order_line_id").OnDelete(DeleteBehavior.Cascade)
             );
+            });
 
-            modelBuilder.Entity<OrderLine>()
-            .HasMany(o => o.ProductCategories)
-            .WithMany(pc => pc.OrderLines)
-            .UsingEntity<Dictionary<string, object>>(
+            modelBuilder.Entity<OrderLine>(e => {
+                e.HasMany(o => o.ProductCategories)
+                .WithMany(pc => pc.OrderLines)
+                .UsingEntity<Dictionary<string, object>>(
                 "order_line_product_category",
                 j => j.HasOne<ProductCategory>().WithMany().HasForeignKey("product_category_id").OnDelete(DeleteBehavior.NoAction),
                 j => j.HasOne<OrderLine>().WithMany().HasForeignKey("order_line_id").OnDelete(DeleteBehavior.Cascade),
@@ -123,33 +127,34 @@ namespace CMS.Infrastructure.Persistence
                     j.ToTable("order_line_product_category");
                 }
             );
+            });
 
-            modelBuilder.Entity<ProductAssemblyDefinition>(entity =>
+            modelBuilder.Entity<ProductAssemblyDefinition>(e =>
             {
-                entity.HasOne(d => d.OutProduct)
+                e.HasOne(d => d.OutProduct)
                       .WithMany()
                       .HasForeignKey(d => d.OutProductId)
                       .OnDelete(DeleteBehavior.NoAction);
 
-                entity.HasOne(d => d.InProduct)
+                e.HasOne(d => d.InProduct)
                       .WithMany()
                       .HasForeignKey(d => d.InProductId)
                       .OnDelete(DeleteBehavior.NoAction);
             });
 
-            modelBuilder.Entity<ProductAssemblyOperation>(entity =>
+            modelBuilder.Entity<ProductAssemblyOperation>(e =>
             {
-                entity.HasOne(o => o.OutProduct)
+                e.HasOne(o => o.OutProduct)
                       .WithMany()
                       .HasForeignKey(o => o.OutProductId)
                       .OnDelete(DeleteBehavior.NoAction);
 
-                entity.HasOne(o => o.InStore)
+                e.HasOne(o => o.InStore)
                       .WithMany()
                       .HasForeignKey(o => o.InStoreId)
                       .OnDelete(DeleteBehavior.NoAction);
 
-                entity.HasOne(o => o.OutStore)
+                e.HasOne(o => o.OutStore)
                       .WithMany()
                       .HasForeignKey(o => o.OutStoreId)
                       .OnDelete(DeleteBehavior.NoAction);

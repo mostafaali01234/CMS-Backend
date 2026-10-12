@@ -10,4 +10,6 @@ public interface ITokenService
     //Task<AuthTokensDto> GenerateTokensAsync(TokenUser user);
     //Task<AuthTokensDto> GenerateTokensAsync(IdentityUser user);
     Task<ServiceResult<AuthTokensDto>> RefreshTokensAsync(string accessToken, string refreshToken);
+
+    Task RevokeAllAsync(string userId, CancellationToken ct = default);
 }

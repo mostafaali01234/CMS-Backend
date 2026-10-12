@@ -84,7 +84,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("api_activity_log");
+                    b.ToTable("api_activity_log", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ApiDataChangeLog", b =>
@@ -140,7 +140,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("LogId");
 
-                    b.ToTable("api_data_change_log");
+                    b.ToTable("api_data_change_log", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.BuyInvoice", b =>
@@ -235,7 +235,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("buy_invoice");
+                    b.ToTable("buy_invoice", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.BuyInvoiceItem", b =>
@@ -325,7 +325,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("buy_invoice_item");
+                    b.ToTable("buy_invoice_item", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Car", b =>
@@ -455,7 +455,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("DriverId");
 
-                    b.ToTable("car");
+                    b.ToTable("car", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.City", b =>
@@ -481,7 +481,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("StateId");
 
-                    b.ToTable("city");
+                    b.ToTable("city", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.CountryState", b =>
@@ -505,7 +505,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("country_state");
+                    b.ToTable("country_state", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Customer", b =>
@@ -586,7 +586,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("customer");
+                    b.ToTable("customer", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.CustomerPayment", b =>
@@ -669,7 +669,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("MoneySafeId");
 
-                    b.ToTable("customer_payment");
+                    b.ToTable("customer_payment", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.CustomerSource", b =>
@@ -688,7 +688,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("customer_source");
+                    b.ToTable("customer_source", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Department", b =>
@@ -732,7 +732,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ManagerId");
 
-                    b.ToTable("department");
+                    b.ToTable("department", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Employee", b =>
@@ -861,7 +861,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("employee");
+                    b.ToTable("employee", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeCommission", b =>
@@ -948,7 +948,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("employee_commission");
+                    b.ToTable("employee_commission", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeLoan", b =>
@@ -1027,7 +1027,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ShiftId");
 
-                    b.ToTable("employee_loan");
+                    b.ToTable("employee_loan", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeLoanInstallment", b =>
@@ -1087,7 +1087,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("LoanId");
 
-                    b.ToTable("employee_loan_installment");
+                    b.ToTable("employee_loan_installment", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeePayroll", b =>
@@ -1199,7 +1199,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("WithdrawnById");
 
-                    b.ToTable("employee_payroll");
+                    b.ToTable("employee_payroll", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeePayrollAdjustment", b =>
@@ -1264,7 +1264,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.ToTable("employee_payroll_adjustment");
+                    b.ToTable("employee_payroll_adjustment", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeSpecialCommission", b =>
@@ -1336,7 +1336,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ManagerId");
 
-                    b.ToTable("employee_special_commission");
+                    b.ToTable("employee_special_commission", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeSpecialCommissionDefinition", b =>
@@ -1379,7 +1379,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ManagerId");
 
-                    b.ToTable("employee_special_commission_definition");
+                    b.ToTable("employee_special_commission_definition", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Expense", b =>
@@ -1466,7 +1466,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ShiftId1");
 
-                    b.ToTable("expense");
+                    b.ToTable("expense", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ExpenseCategory", b =>
@@ -1503,7 +1503,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("expense_category");
+                    b.ToTable("expense_category", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ExpenseType", b =>
@@ -1547,7 +1547,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("expense_type");
+                    b.ToTable("expense_type", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.FeedbackQuestion", b =>
@@ -1566,7 +1566,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("feedback_question");
+                    b.ToTable("feedback_question", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Job", b =>
@@ -1603,7 +1603,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("job");
+                    b.ToTable("job", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.MoneySafe", b =>
@@ -1684,7 +1684,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("TypeId");
 
-                    b.ToTable("money_safe");
+                    b.ToTable("money_safe", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.MoneySafeCategory", b =>
@@ -1730,7 +1730,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("money_safe_category");
+                    b.ToTable("money_safe_category", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.MoneySafeTransaction", b =>
@@ -1818,7 +1818,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ShiftId1");
 
-                    b.ToTable("money_safe_transaction");
+                    b.ToTable("money_safe_transaction", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.MoneySafeType", b =>
@@ -1841,7 +1841,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("money_safe_type");
+                    b.ToTable("money_safe_type", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Order", b =>
@@ -1955,7 +1955,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("order");
+                    b.ToTable("order", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.OrderItem", b =>
@@ -2024,7 +2024,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("order_item");
+                    b.ToTable("order_item", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.OrderLine", b =>
@@ -2073,7 +2073,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ManagerId");
 
-                    b.ToTable("order_line");
+                    b.ToTable("order_line", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.OrderNoteHistory", b =>
@@ -2122,7 +2122,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("order_note_history");
+                    b.ToTable("order_note_history", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.OrderTechHistory", b =>
@@ -2176,7 +2176,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("TechId");
 
-                    b.ToTable("order_tech_history");
+                    b.ToTable("order_tech_history", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Product", b =>
@@ -2269,7 +2269,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("product");
+                    b.ToTable("product", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductAssemblyDefinition", b =>
@@ -2320,7 +2320,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("OutProductId");
 
-                    b.ToTable("product_assembly_definition");
+                    b.ToTable("product_assembly_definition", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductAssemblyOperation", b =>
@@ -2386,7 +2386,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("OutStoreId");
 
-                    b.ToTable("product_assembly_operation");
+                    b.ToTable("product_assembly_operation", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductCategory", b =>
@@ -2427,7 +2427,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("product_category");
+                    b.ToTable("product_category", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductUnit", b =>
@@ -2446,7 +2446,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("product_unit");
+                    b.ToTable("product_unit", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductUnitCommission", b =>
@@ -2509,7 +2509,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("product_unit_commission");
+                    b.ToTable("product_unit_commission", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Project", b =>
@@ -2551,7 +2551,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("project");
+                    b.ToTable("project", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.RefreshToken", b =>
@@ -2598,7 +2598,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("refresh_token");
+                    b.ToTable("refresh_token", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.SaleInvoice", b =>
@@ -2702,7 +2702,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ShiftId1");
 
-                    b.ToTable("sale_invoice");
+                    b.ToTable("sale_invoice", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.SaleInvoiceItem", b =>
@@ -2792,7 +2792,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("sale_invoice_item");
+                    b.ToTable("sale_invoice_item", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Shift", b =>
@@ -2865,7 +2865,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("shift");
+                    b.ToTable("shift", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ShiftTech", b =>
@@ -2917,7 +2917,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("TechId");
 
-                    b.ToTable("shift_tech");
+                    b.ToTable("shift_tech", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Store", b =>
@@ -2987,7 +2987,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("ManagerId");
 
-                    b.ToTable("store");
+                    b.ToTable("store", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.StoreTransaction", b =>
@@ -3049,7 +3049,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("OutStoreId");
 
-                    b.ToTable("store_transaction");
+                    b.ToTable("store_transaction", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.StoreTransactionItem", b =>
@@ -3099,7 +3099,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("store_transaction_item");
+                    b.ToTable("store_transaction_item", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Supplier", b =>
@@ -3189,7 +3189,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("CityId");
 
-                    b.ToTable("supplier");
+                    b.ToTable("supplier", (string)null);
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.SupplierPayment", b =>
@@ -3268,7 +3268,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("supplier_payment");
+                    b.ToTable("supplier_payment", (string)null);
                 });
 
             modelBuilder.Entity("EmployeeEmployeeSpecialCommissionDefinition", b =>
@@ -3511,7 +3511,7 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("order_line_id");
 
-                    b.ToTable("order_line_city");
+                    b.ToTable("order_line_city", (string)null);
                 });
 
             modelBuilder.Entity("order_line_product_category", b =>

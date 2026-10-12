@@ -76,6 +76,17 @@ public class UserRoleService : IUserRoleService
         return ServiceResult<IList<string>>.Ok(roles);
     }
 
+    public async Task ChangeSecurityStamp(string userId, bool changePassword = false)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if(user != null)
+        {
+            if(!changePassword)
+                await _userManager.UpdateSecurityStampAsync(user);   // new stamp in DB
+            await _stamps.InvalidateAsync(user.Id);        // clear Redis AFTER the DB commit
+        }
+    }
+
     public async Task<ServiceResult<string>> AddUserToRoleAsync(string email, string roleName)
     {
         var (user, failure) = await ResolveUserAndRoleAsync(email, roleName);
@@ -88,8 +99,7 @@ public class UserRoleService : IUserRoleService
         if (!result.Succeeded)
             return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
 
-        await _userManager.UpdateSecurityStampAsync(user);   // new stamp in DB
-        await _stamps.InvalidateAsync(user.Id);        // clear Redis AFTER the DB commit
+        await ChangeSecurityStamp(user.Id);
 
         _logger.LogInformation("User {UserId} added to role {RoleName}", user!.Id, roleName);
         return ServiceResult<string>.Ok("User has been added to the role");
@@ -107,8 +117,7 @@ public class UserRoleService : IUserRoleService
         if (!result.Succeeded)
             return ServiceResult<string>.Failed(result.Errors.Select(e => e.Description));
 
-        await _userManager.UpdateSecurityStampAsync(user);   // new stamp in DB
-        await _stamps.InvalidateAsync(user.Id);        // clear Redis AFTER the DB commit
+        ChangeSecurityStamp(user.Id);
 
         _logger.LogInformation("User {UserId} removed from role {RoleName}", user!.Id, roleName);
         return ServiceResult<string>.Ok("User has been removed from the role");

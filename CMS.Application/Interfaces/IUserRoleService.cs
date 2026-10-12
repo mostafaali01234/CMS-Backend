@@ -4,6 +4,7 @@ namespace CMS.Application.Interfaces;
 
 public interface IUserRoleService
 {
+    Task ChangeSecurityStamp(string userId, bool changePassword = false);
     Task<ServiceResult<List<RoleDto>>> GetRolesAsync(CancellationToken ct = default);
     Task<ServiceResult<RoleDto>> CreateRoleAsync(string name);
     Task<ServiceResult<List<UserDto>>> GetUsersAsync(CancellationToken ct = default);

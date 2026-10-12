@@ -174,6 +174,16 @@ public class TokenService : ITokenService
         return claims;
     }
 
+    public async Task RevokeAllAsync(string userId, CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+
+        await _dbContext.RefreshTokens
+            .Where(t => t.UserId == userId
+                     && t.IsRevoked != true)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsRevoked, true), ct);
+    }
+
     // Cryptographically secure (System.Random is not), 256 bits, URL-safe
     private static string GenerateRefreshTokenValue() =>
     Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
