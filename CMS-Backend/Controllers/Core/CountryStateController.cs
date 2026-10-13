@@ -11,7 +11,7 @@ namespace CMS.Api.Controllers;
 [Route("api/[controller]")]
 //[Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class CountryStateController : ApiControllerBase
 {
 
@@ -44,6 +44,7 @@ public class CountryStateController : ApiControllerBase
 
     // DELETE: api/countryState/5
     [HttpDelete("{id:int}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _stateService.DeleteAsync(id));
 }

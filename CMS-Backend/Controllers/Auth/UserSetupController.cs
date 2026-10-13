@@ -1,6 +1,7 @@
 ﻿using CMS.Application.DTOs;
 using CMS.Application.DTOs.Requests;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 using CMS_Backend.Controllers.Base;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -16,12 +17,18 @@ public class UserSetupController : ApiControllerBase
 {
     private readonly IUserRoleService _userRoleService;
     private readonly ITokenService _tokenService;
+    private readonly IUserLookup _userLookupService;
     private readonly UserManager<IdentityUser> _userManager;
 
-    public UserSetupController(IUserRoleService userRoleService, ITokenService tokenService, UserManager<IdentityUser> userManager)
+    public UserSetupController(
+        IUserRoleService userRoleService
+        , ITokenService tokenService
+        , IUserLookup userLookupService
+        , UserManager<IdentityUser> userManager)
     {
         _userRoleService = userRoleService;
         _userManager = userManager;
+        _userLookupService = userLookupService;
         _tokenService = tokenService;
     }
 
@@ -30,6 +37,12 @@ public class UserSetupController : ApiControllerBase
     {
         var id = User.FindFirstValue("UserId") ?? User.FindFirstValue("sub");
         return id is null ? null : await _userManager.FindByIdAsync(id);
+    }
+
+    [HttpGet("list-users/admin")]
+    public async Task<IActionResult> ListUsersAdmin()
+    {
+        return Ok(await _userLookupService.GetUsersAsync());
     }
 
     [HttpGet("me")]

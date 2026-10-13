@@ -32,4 +32,11 @@ public class UserLookup : IUserLookup
             .Select(u => new { u.Id, u.Email })
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? "");
     }
+
+    public async Task<List<UserListDto>> GetUsersAsync()
+    {
+        return await _db.Users
+            .Select(u => new UserListDto((_db.Employee.FirstOrDefault(x => x.UserId == u.Id).Name ?? ""), u.Email, u.Id))
+            .ToListAsync();
+    }
 }

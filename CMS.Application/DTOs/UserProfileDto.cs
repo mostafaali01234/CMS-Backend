@@ -2,6 +2,8 @@
 
 namespace CMS.Application.DTOs;
 
+public record UserListDto(string FullName, string Email, string userId);
+
 public record ProfileDto(string FullName, string Email, string? PhoneNumber);
 
 public record UpdateProfileDto(

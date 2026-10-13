@@ -11,7 +11,7 @@ namespace CMS.Api.Controllers;
 [Route("api/[controller]")]
 //[Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class EmployeeController : ApiControllerBase
 {
 
@@ -34,16 +34,22 @@ public class EmployeeController : ApiControllerBase
 
     // POST: api/employee
     [HttpPost]
+
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Create([FromBody] Employee emp) =>
         ToActionResult(await _employeeService.CreateAsync(emp));
 
     // PUT: api/employee/5
     [HttpPut("{id:int}")]
+
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] Employee emp) =>
         ToNoContentResult(await _employeeService.UpdateAsync(id, emp));
 
     // DELETE: api/employee/5
     [HttpDelete("{id:int}")]
+
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _employeeService.DeleteAsync(id));
 }

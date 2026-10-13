@@ -11,7 +11,7 @@ namespace CMS.Api.Controllers;
 [Route("api/[controller]")]
 //[Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class CityController : ApiControllerBase
 {
 
@@ -34,16 +34,19 @@ public class CityController : ApiControllerBase
 
     // POST: api/city
     [HttpPost]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Create([FromBody] City city) =>
         ToActionResult(await _cityService.CreateAsync(city));
 
     // PUT: api/city/5
     [HttpPut("{id:int}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] City city) =>
         ToNoContentResult(await _cityService.UpdateAsync(id, city));
 
     // DELETE: api/city/5
     [HttpDelete("{id:int}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _cityService.DeleteAsync(id));
 }
