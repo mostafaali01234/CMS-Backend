@@ -106,6 +106,7 @@ builder.Services.AddScoped<IEmployeePayrollService, EmployeePayrollService>();
 builder.Services.AddScoped<IEmployeeLoanService, EmployeeLoanService>();
 builder.Services.AddScoped<IEmployeeLoanInstallmentService, EmployeeLoanInstallmentService>();
 builder.Services.AddScoped<IProductCategoryService, ProductCategoryService>();
+builder.Services.AddScoped<IProductUnitService, ProductUnitService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProductAssemblyDefinitionService, ProductAssemblyDefinitionService>();
 builder.Services.AddScoped<IProductAssemblyOperationService, ProductAssemblyOperationService>();
