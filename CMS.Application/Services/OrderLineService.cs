@@ -1,10 +1,11 @@
-﻿using CMS.Application.Interfaces.Configuration;
-using CMS.Domain.Models;
+﻿using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
+using CMS.Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 using Microsoft.Extensions.Logging;
+using System.Data;
 namespace CMS.Application.Services;
 
 public class OrderLineService : IOrderLineService
@@ -40,7 +41,7 @@ public class OrderLineService : IOrderLineService
         line.Name = normalizedName;
 
         var duplicateQuery = _dbContext.OrderLine
-            .Where(d => d.Name.ToLower() == normalizedName.ToLower());
+            .Where(d => d.Name.ToLower() == normalizedName.ToLower() && !d.IsDeleted);
 
         if (isUpdate && currentId.HasValue)
             duplicateQuery = duplicateQuery.Where(d => d.Id != currentId.Value);
@@ -63,7 +64,12 @@ public class OrderLineService : IOrderLineService
 
     public async Task<ServiceResult<List<OrderLine>>> GetAllAsync()
     {
-        var lines = await _dbContext.OrderLine.AsNoTracking().ToListAsync();
+        var lines = await _dbContext.OrderLine
+            .Include(z => z.ProductCategories)
+            .Include(z => z.Cities)
+            .Where(z => !z.IsDeleted)
+            .AsNoTracking()
+            .ToListAsync();
         return ServiceResult<List<OrderLine>>.Ok(lines);
     }
 
@@ -72,7 +78,12 @@ public class OrderLineService : IOrderLineService
         if (id <= 0)
             return ServiceResult<OrderLine?>.Failed("A valid OrderLine Id is required");
 
-        var line = await _dbContext.OrderLine.Where(z => z.Id == id).AsNoTracking().FirstOrDefaultAsync();
+        var line = await _dbContext.OrderLine
+            .Include(z => z.ProductCategories)
+            .Include(z => z.Cities)
+            .Where(z => z.Id == id && !z.IsDeleted)
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
 
         if (line is null)
             return ServiceResult<OrderLine?>.NotFound("OrderLine not found");
@@ -80,14 +91,35 @@ public class OrderLineService : IOrderLineService
         return ServiceResult<OrderLine?>.Ok(line);
     }
 
-    public async Task<ServiceResult<OrderLine>> CreateAsync(OrderLine line)
+    public async Task<ServiceResult<OrderLine>> CreateAsync(OrderLineRequest request)
     {
+        var cityIds = request.CityIds.Distinct().ToList();
+        var categoryIds = request.CategoryIds.Distinct().ToList();
+        
+        var cities = await _dbContext.City.Where(c => cityIds.Contains(c.Id)).ToListAsync();
+        if (cities.Count != cityIds.Count)
+            return ServiceResult<OrderLine>.Failed("بعض المدن غير موجودة");
+
+        var categories = await _dbContext.ProductCategory.Where(c => categoryIds.Contains(c.Id)).ToListAsync();
+        if (categories.Count != categoryIds.Count)
+            return ServiceResult<OrderLine>.Failed("بعض التصنيفات غير موجودة");
+
+        var line = new OrderLine
+        {
+            Name = request.Name,
+            Notes = request.Notes,
+            ManagerId = request.ManagerId,
+            Cities = cities,
+            ProductCategories = categories,
+        };
+
         var validationError = await ValidateAsync(line, isUpdate: false);
         if (validationError is not null)
         {
             _logger.LogWarning("Validation failed while creating OrderLine: {Error}", validationError);
             return ServiceResult<OrderLine>.Failed(validationError);
         }
+
 
         _dbContext.OrderLine.Add(line);
         await _dbContext.SaveChangesAsync();
@@ -161,28 +193,41 @@ public class OrderLineService : IOrderLineService
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, OrderLine line)
+    public async Task<ServiceResult<bool>> UpdateAsync(long id, OrderLineRequest request)
     {
+        var line = await _dbContext.OrderLine
+       .Include(l => l.Cities)
+       .Include(l => l.ProductCategories)
+       .FirstOrDefaultAsync(l => l.Id == id);
+
         if (line is null)
-            return ServiceResult<bool>.Failed("OrderLine payload is required");
+            return ServiceResult<bool>.NotFound("الخط غير موجود");
 
-        if (id != line.Id)
-            return ServiceResult<bool>.Failed("Id in the route does not match the Id in the payload");
+        var cityIds = request.CityIds.Distinct().ToList();
+        var categoryIds = request.CategoryIds.Distinct().ToList();
 
-        var existing = await _dbContext.OrderLine.FirstOrDefaultAsync(p => p.Id == id);
-        if (existing is null)
-            return ServiceResult<bool>.NotFound("OrderLine not found");
+        var cities = await _dbContext.City.Where(c => cityIds.Contains(c.Id)).ToListAsync();
+        if (cities.Count != cityIds.Count)
+            return ServiceResult<bool>.Failed("بعض المدن غير موجودة");
 
-        var validationError = await ValidateAsync(line, isUpdate: true, currentId: id);
-        if (validationError is not null)
-        {
-            _logger.LogWarning("Validation failed while updating OrderLine {OrderLineId}: {Error}", id, validationError);
-            return ServiceResult<bool>.Failed(validationError);
-        }
+        var categories = await _dbContext.ProductCategory.Where(c => categoryIds.Contains(c.Id)).ToListAsync();
+        if (categories.Count != categoryIds.Count)
+            return ServiceResult<bool>.Failed("بعض التصنيفات غير موجودة");
 
-        // Update only the mutable fields rather than blindly overwriting audit/soft-delete fields
-        existing.Name = line.Name;
-        existing.ManagerId = line.ManagerId;
+        line.Name = request.Name;
+        line.Notes = request.Notes;
+        line.ManagerId = request.ManagerId;
+
+        // replace the sets: remove what's no longer selected, add what's new
+        foreach (var c in line.Cities.Where(c => !cityIds.Contains(c.Id)).ToList())
+            line.Cities.Remove(c);
+        foreach (var c in cities.Where(c => line.Cities.All(x => x.Id != c.Id)))
+            line.Cities.Add(c);
+
+        foreach (var c in line.ProductCategories.Where(c => !categoryIds.Contains(c.Id)).ToList())
+            line.ProductCategories.Remove(c);
+        foreach (var c in categories.Where(c => line.ProductCategories.All(x => x.Id != c.Id)))
+            line.ProductCategories.Add(c);
 
         try
         {
@@ -204,6 +249,8 @@ public class OrderLineService : IOrderLineService
         if (line is null)
             return ServiceResult<bool>.NotFound("OrderLine not found");
 
+
+        _dbContext.OrderLine.Remove(line);
         await _dbContext.SaveChangesAsync();
 
         _logger.LogInformation("OrderLine with Id {OrderLineId} soft-deleted successfully", id);

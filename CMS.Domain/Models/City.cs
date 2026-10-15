@@ -19,6 +19,6 @@ namespace CMS.Domain.Models
         [ForeignKey(nameof(StateId))]
         public virtual CountryState? State { get; set; }
 
-        public virtual ICollection<OrderLine> OrderLines { get; set; } = new List<OrderLine>();
+        //public virtual ICollection<OrderLine> OrderLines { get; set; } = new List<OrderLine>();
     }
 }

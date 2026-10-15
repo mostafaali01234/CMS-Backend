@@ -54,6 +54,8 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("inspection_commission_deduction_percent")]
         public int InspectionCommissionDeductionPercent { get; set; } = 0;
 
+        [JsonPropertyName("unit_commissions")]
+        public List<ProductUnitCommissionDto> UnitCommissions { get; set; } = new();
 
 
         [JsonPropertyName("created_at_utc")]
@@ -65,5 +67,25 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
 
+    }
+
+    public class ProductUnitCommissionDto
+    {
+        [JsonPropertyName("unit_id")] 
+        public long UnitId { get; set; }
+        [JsonPropertyName("sales_wholesale_comm_percent")] 
+        public decimal SalesWholesaleCommPercent { get; set; }
+        [JsonPropertyName("sales_half_wholesale_comm_percent")] 
+        public decimal SalesHalfWholesaleCommPercent { get; set; }
+        [JsonPropertyName("sales_retail_comm_percent")] 
+        public decimal SalesRetailCommPercent { get; set; }
+        [JsonPropertyName("tech_comm")] 
+        public decimal TechComm { get; set; }
+        [JsonPropertyName("assistant_1_comm")] 
+        public decimal Assistant1Comm { get; set; }
+        [JsonPropertyName("assistant_2_comm")] 
+        public decimal Assistant2Comm { get; set; }
+        [JsonPropertyName("assistant_3_comm")] 
+        public decimal Assistant3Comm { get; set; }
     }
 }

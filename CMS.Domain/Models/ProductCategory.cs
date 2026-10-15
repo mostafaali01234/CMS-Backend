@@ -15,7 +15,7 @@ namespace CMS.Domain.Models
         [Column(name: "description")]
         public string? Description { get; set; } = string.Empty;
 
-        public virtual ICollection<OrderLine> OrderLines { get; set; } = new List<OrderLine>();
+        //public virtual ICollection<OrderLine> OrderLines { get; set; } = new List<OrderLine>();
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

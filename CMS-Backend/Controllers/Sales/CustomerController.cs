@@ -24,8 +24,8 @@ public class CustomerController : ApiControllerBase
 
     // GET: api/customer
     [HttpGet]
-    public async Task<IActionResult> GetAll() =>
-        ToActionResult(await _customerService.GetAllAsync());
+    public async Task<IActionResult> GetAll(long sellerId = 0) =>
+        ToActionResult(await _customerService.GetAllAsync(sellerId));
 
     // GET: api/customer/5
     [HttpGet("{id:int}")]

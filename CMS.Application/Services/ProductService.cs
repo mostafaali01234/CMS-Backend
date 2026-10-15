@@ -18,6 +18,9 @@ public class ProductService : IProductService
     private const int NameMaxLength = 150;
     private const int BarcodeMaxLength = 50;
     private const int DescriptionMaxLength = 2000;
+    private const decimal MinPercent = 0;
+    private const decimal MaxPercent = 100;
+    private static bool IsValidPercent(decimal v) => v >= MinPercent && v <= MaxPercent;
 
     public ProductService(
         IAppDbContext dbContext,
@@ -75,6 +78,30 @@ public class ProductService : IProductService
             InspectionCommissionDeductionPercent = dto.InspectionCommissionDeductionPercent
         };
     }
+
+    private static ProductUnitCommission ToCommissionEntity(ProductUnitCommissionDto d) => new()
+    {
+        UnitId = d.UnitId,
+        SalesWholesaleCommPercent = d.SalesWholesaleCommPercent,
+        SalesHalfWholesaleCommPercent = d.SalesHalfWholesaleCommPercent,
+        SalesRetailCommPercent = d.SalesRetailCommPercent,
+        TechComm = d.TechComm,
+        Assistant1Comm = d.Assistant1Comm,
+        Assistant2Comm = d.Assistant2Comm,
+        Assistant3Comm = d.Assistant3Comm,
+    };
+
+    private static ProductUnitCommissionDto ToCommissionDto(ProductUnitCommission c) => new()
+    {
+        UnitId = c.UnitId,
+        SalesWholesaleCommPercent = c.SalesWholesaleCommPercent,
+        SalesHalfWholesaleCommPercent = c.SalesHalfWholesaleCommPercent,
+        SalesRetailCommPercent = c.SalesRetailCommPercent,
+        TechComm = c.TechComm,
+        Assistant1Comm = c.Assistant1Comm,
+        Assistant2Comm = c.Assistant2Comm,
+        Assistant3Comm = c.Assistant3Comm,
+    };
 
     // Centralized validation used by both Create and Update.
     // isUpdate/currentId let uniqueness checks exclude the record being updated.
@@ -145,9 +172,35 @@ public class ProductService : IProductService
         if (dto.ArrangeOrder.HasValue && dto.ArrangeOrder.Value < 0)
             return "ArrangeOrder cannot be negative";
 
-        return null; // no validation errors
+        return await ValidateCommissionsAsync(dto.UnitCommissions);
     }
+    private async Task<string?> ValidateCommissionsAsync(List<ProductUnitCommissionDto>? list)
+    {
+        if (list is null || list.Count == 0) return null;
 
+        if (list.Any(c => c.UnitId <= 0))
+            return "UnitId is required for every commission row";
+
+        var unitIds = list.Select(c => c.UnitId).ToList();
+        if (unitIds.Distinct().Count() != unitIds.Count)
+            return "A unit can appear only once per product";
+
+        var found = await _dbContext.ProductUnit.CountAsync(u => unitIds.Contains(u.Id));
+        if (found != unitIds.Count)
+            return "One or more units were not found";
+
+        foreach (var c in list)
+        {
+            if (!IsValidPercent(c.SalesWholesaleCommPercent) ||
+                !IsValidPercent(c.SalesHalfWholesaleCommPercent) ||
+                !IsValidPercent(c.SalesRetailCommPercent))
+                return "Sales commission percentages must be between 0 and 100";
+
+            if (c.TechComm < 0 || c.Assistant1Comm < 0 || c.Assistant2Comm < 0 || c.Assistant3Comm < 0)
+                return "Commission amounts cannot be negative";
+        }
+        return null;
+    }
     public async Task<ServiceResult<List<ProductDto>>> GetAllAsync()
     {
         var products = await _dbContext.Product
@@ -175,19 +228,27 @@ public class ProductService : IProductService
         if (product is null)
             return ServiceResult<ProductDto?>.NotFound("Product not found");
 
-        return ServiceResult<ProductDto?>.Ok(ToDto(product));
+        var comms = await _dbContext.ProductUnitCommission
+                .Where(c => c.ProductId == id)
+                .AsNoTracking()
+                .ToListAsync();
+
+        var dto = ToDto(product);
+        dto.UnitCommissions = comms.Select(ToCommissionDto).ToList();
+        return ServiceResult<ProductDto?>.Ok(dto);
     }
 
-    public async Task<ServiceResult<ProductDto>> CreateAsync(ProductDto cat)
+    public async Task<ServiceResult<ProductDto>> CreateAsync(ProductDto dto)
     {
-        var validationError = await ValidateAsync(cat, isUpdate: false);
-        if (validationError is not null)
-        {
-            _logger.LogWarning("Validation failed while creating product: {Error}", validationError);
-            return ServiceResult<ProductDto>.Failed(validationError);
-        }
+        var product = ToEntity(dto);
+        product.Id = 0;   // never trust a client-supplied id
 
-        var product = ToEntity(cat);
+        foreach (var c in dto.UnitCommissions)
+        {
+            var entity = ToCommissionEntity(c);
+            entity.Product = product;
+            _dbContext.ProductUnitCommission.Add(entity);
+        }
 
         _dbContext.Product.Add(product);
         await _dbContext.SaveChangesAsync();
@@ -199,7 +260,9 @@ public class ProductService : IProductService
             .AsNoTracking()
             .FirstAsync(p => p.Id == product.Id);
 
-        return ServiceResult<ProductDto>.Ok(ToDto(created));
+        var result = ToDto(created);
+        result.UnitCommissions = dto.UnitCommissions;
+        return ServiceResult<ProductDto>.Ok(result);
     }
 
     public async Task<ServiceResult<bool>> UpdateAsync(long id, ProductDto dto)
@@ -236,6 +299,18 @@ public class ProductService : IProductService
         existing.EnableAddOrder = dto.EnableAddOrder;
         existing.ArrangeOrder = dto.ArrangeOrder;
         existing.InspectionCommissionDeductionPercent = dto.InspectionCommissionDeductionPercent;
+
+        var oldComms = await _dbContext.ProductUnitCommission
+            .Where(c => c.ProductId == id)
+            .ToListAsync();
+        _dbContext.ProductUnitCommission.RemoveRange(oldComms);
+
+        foreach (var c in dto.UnitCommissions)
+        {
+            var entity = ToCommissionEntity(c);
+            entity.ProductId = id;
+            _dbContext.ProductUnitCommission.Add(entity);
+        }
 
         try
         {

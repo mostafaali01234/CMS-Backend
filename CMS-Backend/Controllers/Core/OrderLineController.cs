@@ -1,9 +1,10 @@
-using CMS.Domain.Models;
+using CMS.Application.DTOs;
 using CMS.Application.Interfaces;
+using CMS.Domain.Models;
+using CMS_Backend.Controllers.Base;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using CMS_Backend.Controllers.Base;
 
 namespace CMS.Api.Controllers;
 
@@ -34,7 +35,7 @@ public class OrderLineController : ApiControllerBase
 
     // POST: api/OrderLine
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] OrderLine line) =>
+    public async Task<IActionResult> Create([FromBody] OrderLineRequest line) =>
         ToActionResult(await _orderLineService.CreateAsync(line));
 
     // POST: api/OrderLine/5/cities
@@ -50,7 +51,7 @@ public class OrderLineController : ApiControllerBase
     // PUT: api/OrderLine/5
     [HttpPut("{id:int}")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] OrderLine line) =>
+    public async Task<IActionResult> Update(int id, [FromBody] OrderLineRequest line) =>
         ToNoContentResult(await _orderLineService.UpdateAsync(id, line));
 
     // DELETE: api/OrderLine/5

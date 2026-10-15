@@ -151,10 +151,11 @@ public class CustomerService : ICustomerService
         return null; // no validation errors
     }
 
-    public async Task<ServiceResult<List<CustomerDto>>> GetAllAsync()
+    public async Task<ServiceResult<List<CustomerDto>>> GetAllAsync(long sellerId = 0)
     {
         var customers = await _dbContext.Customer
             .Where(z => !z.IsDeleted)
+            .Where(z => sellerId == 0 || z.SellerId == sellerId)
             .Include(c => c.City)
             .Include(c => c.Seller)
             .AsNoTracking()

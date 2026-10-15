@@ -106,7 +106,7 @@ namespace CMS.Infrastructure.Persistence
 
             modelBuilder.Entity<OrderLine>(e => {
                 e.HasMany(o => o.Cities)
-                .WithMany(c => c.OrderLines)
+                .WithMany()
                 .UsingEntity<Dictionary<string, object>>(
                 "order_line_city",
                 j => j.HasOne<City>().WithMany().HasForeignKey("city_id").OnDelete(DeleteBehavior.NoAction),
@@ -116,7 +116,7 @@ namespace CMS.Infrastructure.Persistence
 
             modelBuilder.Entity<OrderLine>(e => {
                 e.HasMany(o => o.ProductCategories)
-                .WithMany(pc => pc.OrderLines)
+                .WithMany()
                 .UsingEntity<Dictionary<string, object>>(
                 "order_line_product_category",
                 j => j.HasOne<ProductCategory>().WithMany().HasForeignKey("product_category_id").OnDelete(DeleteBehavior.NoAction),
