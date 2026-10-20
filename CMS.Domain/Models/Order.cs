@@ -28,6 +28,9 @@ namespace CMS.Domain.Models
         [Column(name: "category")]
         public OrderCategory Category { get; set; }
 
+        [Column(name: "items_category")]
+        public string ItemsCategory { get; set; } = string.Empty;
+
         //[Precision(18, 2)]
         [Column(name: "total")]
         public decimal Total { get; set; }

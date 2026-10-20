@@ -35,9 +35,7 @@ public class OrderService : IOrderService
 
     private string getOrderCategory(Order order)
     {
-        return order.Category.ToString() == "تركيب" ? 
-                (order.Items.OrderByDescending(z => z.ProductNetTotal).FirstOrDefault()?.Product?.Category?.Name ?? "تركيب") 
-                : order.Category.ToString();
+        return (order.Items.OrderByDescending(z => z.ProductNetTotal).FirstOrDefault()?.Product?.Category?.Name ?? "");
     }
 
     private OrderDto ToDto(Order order)
@@ -48,7 +46,8 @@ public class OrderService : IOrderService
             InstallationDate = order.InstallationDate,
             Status = order.Status,
             Source = order.Source,
-            Category = getOrderCategory(order),
+            Category = order.Category,
+            ItemsCategory = order.ItemsCategory,
             Type = order.Type,
             Total = order.Total,
             Discount = order.Discount,
@@ -56,8 +55,10 @@ public class OrderService : IOrderService
             Shipping = order.Shipping,
             CustomerId = order.CustomerId,
             CustomerName = order.Customer?.Name ?? "",
+            CustomerPhone = order.Customer?.Phone ?? "",
             CityId = order.CityId,
             CityName = order.City?.Name ?? "",
+            CountryStateName = order.City?.State?.Name ?? "", 
             LineId = order.LineId,
             LineName = order.line?.Name ?? "",
             LocationNotes = order.LocationNotes,
@@ -98,14 +99,14 @@ public class OrderService : IOrderService
     {
         return query
             .Include(o => o.Customer)
-            .Include(o => o.City)
+            .Include(o => o.City).ThenInclude(c => c.State)
             .Include(o => o.line)
             .Include(o => o.Seller)
             .Include(o => o.Auditor)
             .Include(o => o.Notes)
             .Include(o => o.TechHistory)
             .Include(o => o.Items!.Where(i => !i.IsDeleted))
-                .ThenInclude(i => i.Product);
+                .ThenInclude(i => i.Product).ThenInclude(z => z.Category);
     }
 
     // Recomputes each item's totals from price/quantity/discount, then recomputes the
@@ -177,12 +178,12 @@ public class OrderService : IOrderService
             return $"City with Id {dto.CityId} was not found";
 
         // --- Line (required FK) ---
-        if (dto.LineId <= 0)
-            return "LineId is required";
+        //if (dto.LineId <= 0)
+        //    return "LineId is required";
 
-        var lineExists = await _dbContext.OrderLine.AnyAsync(l => l.Id == dto.LineId);
-        if (!lineExists)
-            return $"Line with Id {dto.LineId} was not found";
+        //var lineExists = await _dbContext.OrderLine.AnyAsync(l => l.Id == dto.LineId);
+        //if (!lineExists)
+        //    return $"Line with Id {dto.LineId} was not found";
 
         // --- Seller (required FK) ---
         if (dto.SellerId <= 0)
@@ -248,6 +249,32 @@ public class OrderService : IOrderService
 
         return null; // no validation errors
     }
+    
+    private async Task<string?> ValidateMaintenanceAsync(OrderMaintenanceRequestDto dto)
+    {
+        if (dto is null)
+            return "Maintenance payload is required";
+
+        var oldOrderExists = await _dbContext.Order.FirstOrDefaultAsync(c => c.Id == dto.OldOrderId && c.Status == OrderStatus.تام);
+        if (oldOrderExists == null)
+            return $"Old Order with Id {dto.OldOrderId} was not found";
+
+
+        if (oldOrderExists.Type != OrderType.تركيب)
+            return "لا يمكن عمل صيانة لاوردر جملة";
+
+        // --- Auditor (required FK) ---
+        if (dto.AuditorId <= 0)
+            return "AuditorId is required";
+
+        var auditorExists = await _dbContext.Employee
+            .AnyAsync(e => e.Id == dto.AuditorId && !e.IsDeleted);
+
+        if (!auditorExists)
+            return $"Auditor (Employee) with Id {dto.AuditorId} was not found";
+
+        return null; // no validation errors
+    }
 
     public async Task<ServiceResult<List<OrderDto>>> GetAllAsync()
     {
@@ -256,6 +283,102 @@ public class OrderService : IOrderService
             .ToListAsync();
 
         return ServiceResult<List<OrderDto>>.Ok(orders.Select(ToDto).ToList());
+    }
+
+    public async Task<ServiceResult<List<OrderDto>>> GetDoneByCustomerIdAsync(long customerId)
+    {
+        var orders = await WithIncludes(_dbContext.Order.Where(z => !z.IsDeleted && z.CustomerId == customerId && z.Status == OrderStatus.تام))
+            .AsNoTracking()
+            .ToListAsync();
+
+        return ServiceResult<List<OrderDto>>.Ok(orders.Select(ToDto).ToList());
+    }
+
+    public async Task<ServiceResult<List<OrderDto>>> GetOldMaintenanceAsync(long orderId)
+    {
+        var orders = await WithIncludes(_dbContext.Order.Where(z => !z.IsDeleted && z.OldOrderId == orderId))
+            .AsNoTracking()
+            .ToListAsync();
+
+        return ServiceResult<List<OrderDto>>.Ok(orders.Select(ToDto).ToList());
+    }
+
+    public async Task<ServiceResult<PagedResult<OrderDto>>> GetPagedAsync(OrderQueryDto q)
+    {
+        var page = Math.Max(q.Page, 1);
+        var pageSize = Math.Clamp(q.PageSize, 1, 100);
+
+        var query = _dbContext.Order.Where(o => true);
+        //var query = _dbContext.Order.Where(o => !o.IsDeleted);
+
+        // ---- dates: default to today when neither is provided ----
+        var from = q.DateFrom;
+        var to = q.DateTo;
+        if (from is null && to is null)
+            from = to = DateTime.Today;
+
+        if (from is not null)
+        {
+            var f = from.Value.Date;
+            query = query.Where(o => o.CreatedAtUtc >= f);
+        }
+        if (to is not null)
+        {
+            var tEx = to.Value.Date.AddDays(1);     
+            query = query.Where(o => o.CreatedAtUtc < tEx);
+        }
+
+        // ---- filters ----
+        if (q.Status is not null) query = query.Where(o => o.Status == q.Status);
+        if (q.Type is not null) query = query.Where(o => o.Type == q.Type);
+        if (q.CategoryType is not null) query = query.Where(o => o.Category == q.CategoryType);
+        if (q.Source is not null) query = query.Where(o => o.Source == q.Source);
+        if (q.SellerId is > 0) query = query.Where(o => o.SellerId == q.SellerId);
+        if (q.CountryStateId is > 0) query = query.Where(o => o.City!.StateId == q.CountryStateId); // adjust to your FK name
+        if (!string.IsNullOrWhiteSpace(q.ItemsCategory))
+        {
+            var cat = q.ItemsCategory.Trim();
+            query = query.Where(o => o.ItemsCategory == cat);
+        }
+        if (q.TechId is > 0)
+        {
+            var techId = q.TechId;
+            query = query.Where(o => o.TechHistory.Any(t => t.Status == TechStatus.current && t.TechId == techId));
+        }
+
+        // ---- search ----
+        if (!string.IsNullOrWhiteSpace(q.Search))
+        {
+            var s = q.Search.Trim();
+            var isId = long.TryParse(s, out var searchId);
+            query = query.Where(o =>
+                (isId && o.Id == searchId) ||
+                o.Customer!.Name.Contains(s) ||
+                o.Customer.Phone.Contains(s) ||
+                o.City!.Name.Contains(s) ||
+                o.line!.Name.Contains(s) ||
+                o.Seller!.Name.Contains(s) ||
+                o.TechHistory.Any(t => t.Status == TechStatus.current && t.Tech!.Name.Contains(s)));
+        }
+
+        // count BEFORE includes (cheap query)
+        var total = await query.CountAsync();
+
+        var orders = await WithIncludes(
+                query.OrderByDescending(o => o.CreatedAtUtc).ThenByDescending(o => o.Id)
+                     .Skip((page - 1) * pageSize)
+                     .Take(pageSize))
+            //.AsSplitQuery()          // avoids cartesian explosion from Items/Notes/TechHistory
+            .AsNoTracking()
+            .ToListAsync();
+
+        return ServiceResult<PagedResult<OrderDto>>.Ok(new PagedResult<OrderDto>
+        {
+            Items = orders.Select(ToDto).ToList(),
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     public async Task<ServiceResult<OrderDto?>> GetByIdAsync(long id)
@@ -298,6 +421,7 @@ public class OrderService : IOrderService
             Discount = dto.Discount,
             NetTotal = dto.NetTotal,
             Shipping = dto.Shipping,
+            Category = dto.Shipping ? OrderCategory.شحن : (dto.OldOrderId != null ? OrderCategory.صيانة : OrderCategory.تركيب),
             CustomerId = dto.CustomerId,
             CityId = dto.CityId,
             LineId = lineId,
@@ -316,6 +440,109 @@ public class OrderService : IOrderService
             }).ToList()
         };
 
+
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+
+        await strategy.ExecuteAsync(async () =>
+        {
+            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+
+            _dbContext.Order.Add(order);
+            await _dbContext.SaveChangesAsync();
+
+            await dbTransaction.CommitAsync();
+        });
+
+        var added = await WithIncludes(_dbContext.Order.Where(z => z.Id == order.Id)).FirstOrDefaultAsync();
+        order.ItemsCategory = getOrderCategory(added);
+
+        #region Notes
+        await _noteService.CreateAsync(new OrderNoteHistoryDto
+        {
+            OrderId = order.Id,
+            Notes = $"تم إنشاء الطلب رقم {order.Id} ({order.Items.Count} منتجات) بنجاح.",
+            CreatedBy = dto.CreatedBy ?? "System",
+            AuditorId = dto.AuditorId
+        });
+        #endregion
+
+        #region Tech
+        var techAdded = await _techService.CreateAsync(new OrderTechHistoryDto
+        {
+            OrderId = order.Id,
+            TechId = techId,
+            Status = TechStatus.current,
+            AuditorId = dto.AuditorId,
+            CreatedBy = dto.CreatedBy ?? "System"
+        }, true);
+        if(techAdded != null)
+        {
+            _logger.LogInformation("Tech history created for Order Id {OrderId} with Tech Id {TechId}", order.Id, techId);
+            //await _noteService.CreateAsync(new OrderNoteHistoryDto
+            //{
+            //    OrderId = order.Id,
+            //    Notes = techNote.Replace("#OrderId", order.Id.ToString()),
+            //    CreatedBy = dto.CreatedBy ?? "System",
+            //    AuditorId = dto.AuditorId
+            //});
+
+            order.Status = OrderStatus.قيد_التنفيذ;
+            await _dbContext.SaveChangesAsync();
+
+        }
+        #endregion
+
+        _logger.LogInformation("Order created with Id {OrderId} ({ItemCount} items)", order.Id, order.Items.Count);
+
+        var created = await WithIncludes(_dbContext.Order)
+            .AsNoTracking()
+            .FirstAsync(o => o.Id == order.Id);
+
+        return ServiceResult<OrderDto>.Ok(ToDto(created));
+    }
+
+    public async Task<ServiceResult<OrderDto>> CreateMaintenanceAsync(OrderMaintenanceRequestDto dto)
+    {
+        var validationError = await ValidateMaintenanceAsync(dto);
+        if (validationError is not null)
+        {
+            _logger.LogWarning("Validation failed while creating order: {Error}", validationError);
+            return ServiceResult<OrderDto>.Failed(validationError);
+        }
+        var oldOrder = await WithIncludes(_dbContext.Order.Where(z => z.Id == dto.OldOrderId)).AsNoTracking().FirstOrDefaultAsync();
+
+        var order = new Order
+        {
+            OldOrderId = oldOrder.Id,
+            InstallationDate = DateTime.Today,
+            Status = OrderStatus.جديد,
+            Source = oldOrder.Source,
+            Type = oldOrder.Type,
+            Total = 0,
+            Discount = 0,
+            NetTotal = 0,
+            Shipping = false,
+            Category = OrderCategory.صيانة,
+            ItemsCategory = oldOrder.ItemsCategory,
+            CustomerId = oldOrder.CustomerId,
+            CityId = oldOrder.CityId,
+            LineId = oldOrder.LineId,
+            LocationNotes = oldOrder.LocationNotes,
+            SellerId = oldOrder.SellerId,
+            AuditorId = dto.AuditorId,
+            AttachmentImage = oldOrder.AttachmentImage,
+            //Items = dto.Items.Select(i => new OrderItem
+            //{
+            //    ProductId = i.ProductId,
+            //    ProductPrice = i.ProductPrice,
+            //    ProductQuantity = i.ProductQuantity,
+            //    ProductTotal = i.ProductTotal,
+            //    ProductDiscount = i.ProductDiscount,
+            //    ProductNetTotal = i.ProductNetTotal
+            //}).ToList()
+        };
+
+
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
@@ -332,35 +559,38 @@ public class OrderService : IOrderService
         await _noteService.CreateAsync(new OrderNoteHistoryDto
         {
             OrderId = order.Id,
-            Notes = $"تم إنشاء الطلب رقم {order.Id} ({order.Items.Count} منتجات) بنجاح. {techNote}",
+            Notes = $"تم إنشاء طلب الصيانة رقم {order.Id}  بنجاح.",
+            CreatedBy = dto.CreatedBy ?? "System",
+            AuditorId = dto.AuditorId
+        });
+        await _noteService.CreateAsync(new OrderNoteHistoryDto
+        {
+            OrderId = order.Id,
+            Notes = dto.Notes,
             CreatedBy = dto.CreatedBy ?? "System",
             AuditorId = dto.AuditorId
         });
         #endregion
 
         #region Tech
-        var techAdded = await _techService.CreateAsync(new OrderTechHistoryDto
+        var techId = await _dbContext.OrderTechHistory.FirstOrDefaultAsync(z => z.OrderId == dto.OldOrderId && z.Status == TechStatus.current);
+        if (techId != null)
         {
-            OrderId = order.Id,
-            TechId = techId,
-            Status = TechStatus.current,
-            AuditorId = dto.AuditorId,
-            CreatedBy = dto.CreatedBy ?? "System"
-        });
-        if(techAdded != null)
-        {
-            _logger.LogInformation("Tech history created for Order Id {OrderId} with Tech Id {TechId}", order.Id, techId);
-            await _noteService.CreateAsync(new OrderNoteHistoryDto
+            var techAdded = await _techService.CreateAsync(new OrderTechHistoryDto
             {
                 OrderId = order.Id,
-                Notes = techNote.Replace("#OrderId", order.Id.ToString()),
-                CreatedBy = dto.CreatedBy ?? "System",
-                AuditorId = dto.AuditorId
-            });
+                TechId = techId.TechId,
+                Status = TechStatus.current,
+                AuditorId = dto.AuditorId,
+                CreatedBy = dto.CreatedBy ?? "System"
+            }, true);
+            if(techAdded != null)
+            {
+                _logger.LogInformation("Tech history created for Order Id {OrderId} with Tech Id {TechId}", order.Id, techId);
 
-            order.Status = OrderStatus.قيد_التنفيذ;
-            await _dbContext.SaveChangesAsync();
-
+                order.Status = OrderStatus.قيد_التنفيذ;
+                await _dbContext.SaveChangesAsync();
+            }
         }
         #endregion
 
@@ -381,9 +611,8 @@ public class OrderService : IOrderService
         if (id != dto.Id)
             return ServiceResult<bool>.Failed("Id in the route does not match the Id in the payload");
 
-        var existing = await _dbContext.Order
-            .Include(o => o.Items)
-            .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
+        var existing = await WithIncludes(_dbContext.Order
+            .Where(o => o.Id == id && !o.IsDeleted)).FirstOrDefaultAsync();
 
         if (existing is null)
             return ServiceResult<bool>.NotFound("Order not found");
@@ -438,6 +667,8 @@ public class OrderService : IOrderService
 
             await _dbContext.OrderItem.AddRangeAsync(newItems);
 
+            existing.ItemsCategory = getOrderCategory(existing);
+
             try
             {
                 await _dbContext.SaveChangesAsync();
@@ -455,7 +686,7 @@ public class OrderService : IOrderService
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> CancelAsync(long id)
+    public async Task<ServiceResult<bool>> CancelAsync(long id, OrderCancelDto body)
     {
         var order = await _dbContext.Order
             .Include(o => o.Items)
@@ -468,11 +699,20 @@ public class OrderService : IOrderService
 
         await _dbContext.SaveChangesAsync();
 
+
+        await _noteService.CreateAsync(new OrderNoteHistoryDto
+        {
+            OrderId = order.Id,
+            Notes = $"تم الغاء الطلب رقم {order.Id}.",
+            CreatedBy = body.CreatedBy ?? "System",
+            AuditorId = body.AuditorId
+        });
+
         _logger.LogInformation("Order with Id {OrderId} canceled successfully", id);
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> DeleteAsync(long id)
+    public async Task<ServiceResult<bool>> DeleteAsync(long id, OrderCancelDto body)
     {
         var order = await _dbContext.Order
             .Include(o => o.Items)
@@ -497,6 +737,16 @@ public class OrderService : IOrderService
         }
 
         await _dbContext.SaveChangesAsync();
+
+
+
+        await _noteService.CreateAsync(new OrderNoteHistoryDto
+        {
+            OrderId = order.Id,
+            Notes = $"تم حذف الطلب رقم {order.Id}.",
+            CreatedBy = body.CreatedBy ?? "System",
+            AuditorId = body.AuditorId
+        });
 
         _logger.LogInformation("Order with Id {OrderId} soft-deleted successfully", id);
         return ServiceResult<bool>.Ok(true);

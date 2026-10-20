@@ -26,7 +26,8 @@ public class TokenService : ITokenService
     private readonly IAppDbContext _dbContext;
     private readonly JwtConfig _jwtConfig;
     private readonly TokenValidationParameters _tokenValidationParameters;
-    private readonly ILogger<TokenService> _logger;
+    private readonly ILogger<TokenService> _logger; 
+    private static readonly TimeSpan ReuseGrace = TimeSpan.FromSeconds(30);
 
     public const string StampClaim = "sstamp";
 
@@ -111,15 +112,29 @@ public class TokenService : ITokenService
 
         if (stored is null) return Reject("refresh token does not exist");
         if (stored.ExpiryDate < DateTime.UtcNow) return Reject("refresh token has expired");
-        if (stored.IsUsed) return Reject("refresh token has already been used");
+
+        // A token that was already used is still accepted for a short window, so a second tab
+        // (or a retry after a lost response) doesn't log the user out.
+        if (stored.IsUsed)
+        {
+            var withinGrace = stored.UsedDate is { } usedAt
+                              && DateTime.UtcNow - usedAt <= ReuseGrace;
+            if (!withinGrace) return Reject("refresh token has already been used");
+        }
+
         if (stored.IsRevoked) return Reject("refresh token has been revoked");
         if (stored.JwtId != jwt.Id) return Reject("refresh token does not match the access token");
 
-        stored.IsUsed = true;
-        await _dbContext.SaveChangesAsync();
-
+        // Look the user up BEFORE marking the token as used, so a failure here doesn't burn it.
         var user = await _userManager.FindByIdAsync(stored.UserId);
         if (user is null) return Reject("user no longer exists");
+
+        if (!stored.IsUsed)
+        {
+            stored.IsUsed = true;
+            stored.UsedDate = DateTime.UtcNow;   // set only on the first use, so the window doesn't slide
+            await _dbContext.SaveChangesAsync();
+        }
 
         return ServiceResult<AuthTokensDto>.Ok(await GenerateTokensCoreAsync(user));
     }

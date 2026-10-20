@@ -67,7 +67,7 @@ public class OrderNoteHistoryService : IOrderNoteHistoryService
             return "OrderId is required";
 
         var orderExists = await _dbContext.Order
-            .AnyAsync(o => o.Id == dto.OrderId && !o.IsDeleted);
+            .AnyAsync(o => o.Id == dto.OrderId /*&& !o.IsDeleted*/);
 
         if (!orderExists)
             return $"Order with Id {dto.OrderId} was not found";
@@ -101,19 +101,18 @@ public class OrderNoteHistoryService : IOrderNoteHistoryService
         return ServiceResult<List<OrderNoteHistoryDto>>.Ok(items.Select(ToDto).ToList());
     }
 
-    public async Task<ServiceResult<OrderNoteHistoryDto?>> GetByOrderIdAsync(long orderId)
+    public async Task<ServiceResult<List<OrderNoteHistoryDto>>> GetByOrderIdAsync(long orderId)
     {
         if (orderId <= 0)
-            return ServiceResult<OrderNoteHistoryDto?>.Failed("A valid Id is required");
+            return ServiceResult<List<OrderNoteHistoryDto>>.Failed("A valid order Id is required");
 
-        var item = await WithIncludes(_dbContext.OrderNoteHistory.Where(z => !z.IsDeleted && z.OrderId == orderId))
+        var items = await WithIncludes(_dbContext.OrderNoteHistory
+                .Where(z => !z.IsDeleted && z.OrderId == orderId))
+            .OrderByDescending(n => n.CreatedAtUtc)
             .AsNoTracking()
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        if (item is null)
-            return ServiceResult<OrderNoteHistoryDto?>.NotFound("Order note history record not found");
-
-        return ServiceResult<OrderNoteHistoryDto?>.Ok(ToDto(item));
+        return ServiceResult<List<OrderNoteHistoryDto>>.Ok(items.Select(ToDto).ToList());
     }
 
     public async Task<ServiceResult<OrderNoteHistoryDto?>> GetByIdAsync(long id)

@@ -18,6 +18,8 @@ namespace CMS.Domain.Models
         public string JwtId { get; set; } // Map the token with jwtId
         [Column(name: "is_used")]
         public bool IsUsed { get; set; } // if its used we don't want generate a new Jwt token with the same refresh token
+        [Column(name: "used_date")]
+        public DateTime? UsedDate { get; set; }
         [Column(name: "is_revoked")]
         public bool IsRevoked { get; set; } // if it has been revoke for security reasons
         [Column(name: "added_date")]

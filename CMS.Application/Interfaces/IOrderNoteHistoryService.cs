@@ -8,7 +8,7 @@ public interface IOrderNoteHistoryService
 {
     Task<ServiceResult<List<OrderNoteHistoryDto>>> GetAllAsync();
     Task<ServiceResult<OrderNoteHistoryDto?>> GetByIdAsync(long id);
-    Task<ServiceResult<OrderNoteHistoryDto?>> GetByOrderIdAsync(long orderId);
+    Task<ServiceResult<List<OrderNoteHistoryDto>>> GetByOrderIdAsync(long orderId);
     Task<ServiceResult<OrderNoteHistoryDto>> CreateAsync(OrderNoteHistoryDto dto);
     Task<ServiceResult<bool>> UpdateAsync(long id, OrderNoteHistoryDto dto);
     Task<ServiceResult<bool>> DeleteAsync(long id);

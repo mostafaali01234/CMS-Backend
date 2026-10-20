@@ -13,14 +13,17 @@ namespace CMS.Application.Services;
 public class OrderTechHistoryService : IOrderTechHistoryService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IOrderNoteHistoryService _noteService;
     private readonly ILogger<OrderTechHistoryService> _logger;
 
     public OrderTechHistoryService(
         IAppDbContext dbContext,
+        IOrderNoteHistoryService noteService,
         ILogger<OrderTechHistoryService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _noteService = noteService;
     }
 
     private OrderTechHistoryDto ToDto(OrderTechHistory h)
@@ -60,12 +63,12 @@ public class OrderTechHistoryService : IOrderTechHistoryService
             .ToList();
         foreach (var history in olderTechHistories)
         {
-            if (history.Status != TechStatus.current)
-            {
+            //if (history.Status != TechStatus.current)
+            //{
                 history.Status = TechStatus.old;
-            }
+            //}
         }
-        _dbContext.SaveChangesAsync();
+        //_dbContext.SaveChangesAsync();
     }
 
     private IQueryable<OrderTechHistory> WithIncludes(IQueryable<OrderTechHistory> query)
@@ -142,7 +145,7 @@ public class OrderTechHistoryService : IOrderTechHistoryService
         return ServiceResult<OrderTechHistoryDto?>.Ok(ToDto(item));
     }
 
-    public async Task<ServiceResult<OrderTechHistoryDto>> CreateAsync(OrderTechHistoryDto dto)
+    public async Task<ServiceResult<OrderTechHistoryDto>> CreateAsync(OrderTechHistoryDto dto, bool auto = false)
     {
         var validationError = await ValidateAsync(dto);
         if (validationError is not null)
@@ -158,6 +161,17 @@ public class OrderTechHistoryService : IOrderTechHistoryService
         _dbContext.OrderTechHistory.Add(entity);
         await _dbContext.SaveChangesAsync();
 
+        var tech = await _dbContext.Employee.FirstOrDefaultAsync(z => z.Id == dto.TechId);
+        var message = $"تم تعيين الفني {tech.Name} لاوردر رقم #OrderId بواسطة {dto.CreatedBy}";
+        if(auto)
+            message = $"تم تعيين الفني {tech.Name} لاوردر رقم #OrderId تلقائيا";
+        await _noteService.CreateAsync(new OrderNoteHistoryDto
+        {
+            OrderId = dto.OrderId,
+            Notes = message.Replace("#OrderId", dto.OrderId.ToString()),
+            CreatedBy = dto.CreatedBy ?? "System",
+            AuditorId = dto.AuditorId
+        });
         _logger.LogInformation("Order tech history created with Id {HistoryId} for Order {OrderId}", entity.Id, entity.OrderId);
 
         var created = await WithIncludes(_dbContext.OrderTechHistory)
