@@ -3,6 +3,7 @@ using CMS.Api.Services;
 using CMS.Application.DTOs;
 using CMS.Application.Interfaces;
 using CMS.Application.Interfaces.Configuration;
+using CMS.Application.Options;
 using CMS.Application.Services;
 using CMS.Infrastructure.Auditing;
 using CMS.Infrastructure.Identity;
@@ -83,6 +84,12 @@ builder.Services.AddStackExchangeRedisCache(o =>
     o.Configuration = builder.Configuration.GetConnectionString("Redis");
     o.InstanceName = "myapp:";
 });
+
+builder.Services
+    .AddOptions<MaintenanceOptions>()
+    .Bind(builder.Configuration.GetSection(MaintenanceOptions.SectionName))
+    .Validate(o => o.ProductId > 0, "Maintenance:ProductId is not configured")
+    .ValidateOnStart();
 
 
 //builder.Services.AddScoped<IAppDbContext>(p => p.GetRequiredService<AppDbContext>());

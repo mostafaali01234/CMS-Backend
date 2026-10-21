@@ -1,12 +1,14 @@
 ﻿// Services/OrderService.cs
+using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
+using CMS.Application.Options;
 using CMS.Domain.Enums;
 using CMS.Domain.Models;
-using CMS.Application.DTOs;
-using CMS.Application.Interfaces.Configuration;
-using CMS.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CMS.Application.Services;
 
@@ -16,6 +18,8 @@ public class OrderService : IOrderService
     private readonly IOrderNoteHistoryService _noteService;
     private readonly IOrderTechHistoryService _techService;
     private readonly ILogger<OrderService> _logger;
+    private readonly IOptions<MaintenanceOptions> _maintenanceOptions;
+
 
     private const int LocationNotesMaxLength = 2000;
     private const int AttachmentImageMaxLength = 500;
@@ -25,12 +29,14 @@ public class OrderService : IOrderService
         IAppDbContext dbContext,
         IOrderNoteHistoryService noteService,
         IOrderTechHistoryService techService,
+        IOptions<MaintenanceOptions> maintenanceOptions,
         ILogger<OrderService> logger)
     {
         _dbContext = dbContext;
         _noteService = noteService;
         _techService = techService;
         _logger = logger;
+        _maintenanceOptions = maintenanceOptions;
     }
 
     private string getOrderCategory(Order order)
@@ -542,6 +548,23 @@ public class OrderService : IOrderService
             //}).ToList()
         };
 
+        var maintenanceProduct = await _dbContext.Product
+          .AsNoTracking()
+          .FirstOrDefaultAsync(p => p.Id == _maintenanceOptions.Value.ProductId && !p.IsDeleted);
+
+        if(maintenanceProduct != null)
+        {
+            order.Items = new List<OrderItem>() {
+            new OrderItem
+            {
+                ProductId = maintenanceProduct.Id,
+                ProductPrice = 0,
+                ProductQuantity = 1,
+                ProductTotal = 0,
+                ProductDiscount = 0,
+                ProductNetTotal = 0
+            }};
+        }
 
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 

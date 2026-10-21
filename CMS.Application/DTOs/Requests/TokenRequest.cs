@@ -9,7 +9,7 @@ namespace CMS.Application.DTOs.Requests
         [JsonPropertyName("token")]
         public string Token { get; set; }
         [Required]
-        [JsonPropertyName("refresh_token")]
+        [JsonPropertyName("refreshToken")]
         public string RefreshToken { get; set; }
     }
 
