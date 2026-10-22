@@ -5,6 +5,7 @@ using CMS_Backend.Controllers.Base;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CMS.Api.Controllers;
 
@@ -93,6 +94,16 @@ public class OrderController : ApiControllerBase
     [HttpGet("Maintenance/{id:int}")]
     public async Task<IActionResult> GetOldMaintenance(int id) =>
         ToActionResult(await _orderService.GetOldMaintenanceAsync(id));
+
+    // GET: api/Order/stats
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var userId = User.FindFirstValue("UserId");       
+        if (userId is null) return Unauthorized();
+
+        return ToActionResult(await _orderService.GetStatsAsync(userId, User.IsInRole("SuperAdmin")));
+    }
 
 
     // PUT: api/Order/5

@@ -58,7 +58,7 @@ public class MoneySafeCategoryService : IMoneySafeCategoryService
 
     public async Task<ServiceResult<List<MoneySafeCategory>>> GetAllAsync()
     {
-        var cats = await _dbContext.MoneySafeCategory.AsNoTracking().ToListAsync();
+        var cats = await _dbContext.MoneySafeCategory.Where(z => !z.IsDeleted).AsNoTracking().ToListAsync();
         return ServiceResult<List<MoneySafeCategory>>.Ok(cats);
     }
 
@@ -67,7 +67,7 @@ public class MoneySafeCategoryService : IMoneySafeCategoryService
         if (id <= 0)
             return ServiceResult<MoneySafeCategory?>.Failed("A valid MoneySafeCategory Id is required");
 
-        var cat = await _dbContext.MoneySafeCategory.Where(z => z.Id == id).AsNoTracking().FirstOrDefaultAsync();
+        var cat = await _dbContext.MoneySafeCategory.Where(z => z.Id == id).Where(z => !z.IsDeleted).AsNoTracking().FirstOrDefaultAsync();
 
         if (cat is null)
             return ServiceResult<MoneySafeCategory?>.NotFound("MoneySafeCategory not found");
@@ -99,7 +99,7 @@ public class MoneySafeCategoryService : IMoneySafeCategoryService
         if (id != cat.Id)
             return ServiceResult<bool>.Conflict("Id in the route does not match the Id in the payload");
 
-        var existing = await _dbContext.MoneySafeCategory.FirstOrDefaultAsync(p => p.Id == id);
+        var existing = await _dbContext.MoneySafeCategory.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         if (existing is null)
             return ServiceResult<bool>.NotFound("MoneySafeCategory not found");
 
@@ -113,6 +113,7 @@ public class MoneySafeCategoryService : IMoneySafeCategoryService
         // Update only the mutable field rather than blindly overwriting audit/soft-delete fields
         existing.Name = cat.Name;
         existing.OrderNumber = cat.OrderNumber;
+        existing.Notes = cat.Notes;
 
         try
         {
@@ -130,7 +131,7 @@ public class MoneySafeCategoryService : IMoneySafeCategoryService
 
     public async Task<ServiceResult<bool>> DeleteAsync(long id)
     {
-        var cat = await _dbContext.MoneySafeCategory.FirstOrDefaultAsync(j => j.Id == id);
+        var cat = await _dbContext.MoneySafeCategory.FirstOrDefaultAsync(j => j.Id == id && !j.IsDeleted);
         if (cat is null)
             return ServiceResult<bool>.NotFound("MoneySafeCategory not found");
 
@@ -142,7 +143,7 @@ public class MoneySafeCategoryService : IMoneySafeCategoryService
         if (isInUse)
             return ServiceResult<bool>.Conflict("Cannot delete a MoneySafeCategory that is still assigned to cities");
 
-
+        _dbContext.MoneySafeCategory.Remove(cat);
         await _dbContext.SaveChangesAsync();
 
         _logger.LogInformation("MoneySafeCategory with Id {MoneySafeCategoryId} soft-deleted successfully", id);

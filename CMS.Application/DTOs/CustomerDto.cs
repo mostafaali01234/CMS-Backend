@@ -29,6 +29,12 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("city_name")]
         public string CityName { get; set; } = string.Empty;
 
+        [JsonPropertyName("state_id")]
+        public long StateId { get; set; }
+
+        [JsonPropertyName("state_name")]
+        public string StateName { get; set; } = string.Empty;
+
         [JsonPropertyName("address")]
         public string? Address { get; set; } = string.Empty;
 

@@ -1650,6 +1650,10 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsMultiCurrency")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_multi_currency");
+
                     b.Property<long?>("ManagerId")
                         .HasColumnType("bigint")
                         .HasColumnName("manager_id")

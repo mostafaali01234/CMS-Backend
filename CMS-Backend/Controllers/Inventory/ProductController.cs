@@ -12,7 +12,7 @@ namespace CMS.Api.Controllers;
 [Route("api/[controller]")]
 //[Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("1.0")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 public class ProductController : ApiControllerBase
 {
 
@@ -37,16 +37,19 @@ public class ProductController : ApiControllerBase
 
     // POST: api/product
     [HttpPost]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Create([FromBody] ProductDto product) =>
         ToActionResult(await _productService.CreateAsync(product));
 
     // PUT: api/product/5
     [HttpPut("{id:int}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] ProductDto product) =>
         ToNoContentResult(await _productService.UpdateAsync(id, product));
 
     // DELETE: api/product/5
     [HttpDelete("{id:int}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _productService.DeleteAsync(id));
 
@@ -62,6 +65,7 @@ public class ProductController : ApiControllerBase
 
     // POST: api/{productID}/unit-comm
     [HttpPost("{productId:long}/unit-comm")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> AddProductComms([FromBody] List<ProductUnitCommission> commList) =>
         ToActionResult(await _commService.CreateForProductAsync(commList));
 }

@@ -43,6 +43,8 @@ public class CustomerService : ICustomerService
             Phone3 = customer.Phone3,
             CityId = customer.CityId,
             CityName = customer.City?.Name ?? "",
+            StateId = customer.City?.StateId ?? 0,
+            StateName = customer.City?.State?.Name ?? "",
             Address = customer.Address,
             OpeningBalance = customer.OpeningBalance,
             SellerId = customer.SellerId ?? 0,
@@ -156,7 +158,7 @@ public class CustomerService : ICustomerService
         var customers = await _dbContext.Customer
             .Where(z => !z.IsDeleted)
             .Where(z => sellerId == 0 || z.SellerId == sellerId)
-            .Include(c => c.City)
+            .Include(c => c.City).ThenInclude(z => z.State)
             .Include(c => c.Seller)
             .AsNoTracking()
             .ToListAsync();
@@ -172,7 +174,7 @@ public class CustomerService : ICustomerService
 
         var customer = await _dbContext.Customer
             .Where(z => !z.IsDeleted && z.Id == id)
-            .Include(c => c.City)
+            .Include(c => c.City).ThenInclude(z => z.State)
             .Include(c => c.Seller)
             .AsNoTracking()
             .FirstOrDefaultAsync();
@@ -200,7 +202,7 @@ public class CustomerService : ICustomerService
         _logger.LogInformation("Customer created with Id {CustomerId}", customer.Id);
 
         var created = await _dbContext.Customer
-            .Include(c => c.City)
+            .Include(c => c.City).ThenInclude(z => z.State)
             .Include(c => c.Seller)
             .AsNoTracking()
             .FirstAsync(c => c.Id == customer.Id);

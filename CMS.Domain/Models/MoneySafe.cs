@@ -24,6 +24,9 @@ namespace CMS.Domain.Models
         [Column(name: "active")]
         public bool Active { get; set; } = true;
 
+        [Column(name: "is_multi_currency")]
+        public bool IsMultiCurrency { get; set; } = false;
+
         [Column(name: "opening_balance")]
         public decimal OpeningBalance { get; set; } = 0;
 

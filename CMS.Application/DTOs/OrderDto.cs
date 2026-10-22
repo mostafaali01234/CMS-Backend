@@ -1,5 +1,4 @@
 ﻿// Models/DTOs/OrderDto.cs
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using CMS.Domain.Enums;
 
@@ -204,4 +203,15 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("total_pages")] public int TotalPages => PageSize == 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
     }
 
+    public class OrderStatsDto
+    {
+        [JsonPropertyName("total_today")] public int TotalToday { get; set; }
+        [JsonPropertyName("total_month")] public int TotalMonth { get; set; }
+        [JsonPropertyName("completed_today")] public int CompletedToday { get; set; }
+        [JsonPropertyName("completed_month")] public int CompletedMonth { get; set; }
+        [JsonPropertyName("cancelled_today")] public int CancelledToday { get; set; }
+        [JsonPropertyName("cancelled_month")] public int CancelledMonth { get; set; }
+        [JsonPropertyName("maintenance_month")] public int MaintenanceMonth { get; set; }
+        [JsonPropertyName("maintenance_completed_month")] public int MaintenanceCompletedMonth { get; set; }
+    }
 }

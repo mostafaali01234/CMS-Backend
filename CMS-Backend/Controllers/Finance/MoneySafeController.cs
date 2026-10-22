@@ -46,4 +46,10 @@ public class MoneySafeController : ApiControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _msService.DeleteAsync(id));
+
+
+    [HttpGet("type")]
+    public async Task<IActionResult> GetAllTypes() =>
+        ToActionResult(await _msService.GetAllTypesAsync());
+
 }

@@ -3,6 +3,17 @@ using System.Text.Json.Serialization;
 
 namespace CMS.Application.DTOs
 {
+    public class MoneySafeTypeDto
+    {
+        [JsonPropertyName("id")]
+        public long Id { get; set; }
+
+        [JsonPropertyName("cod")]
+        public long Cod { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+    }
     public class MoneySafeDto
     {
         [JsonPropertyName("id")]
@@ -20,11 +31,20 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("active")]
         public bool Active { get; set; }
 
+        [JsonPropertyName("is_multi_currency")]
+        public bool IsMultiCurrency { get; set; }
+
         [JsonPropertyName("opening_balance")]
         public decimal OpeningBalance { get; set; }
 
         [JsonPropertyName("opening_balance_currency")]
         public decimal OpeningBalanceCurrency { get; set; }
+
+        [JsonPropertyName("balance")]
+        public decimal Balance { get; set; }
+
+        [JsonPropertyName("balance_currency")]
+        public decimal BalanceCurrency { get; set; }
 
         [JsonPropertyName("manager_id")]
         public long? ManagerId { get; set; }

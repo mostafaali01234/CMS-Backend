@@ -11,6 +11,7 @@ public interface IOrderService
     Task<ServiceResult<OrderDto?>> GetByIdAsync(long id);
     Task<ServiceResult<List<OrderDto>>> GetDoneByCustomerIdAsync(long customerId);
     Task<ServiceResult<List<OrderDto>>> GetOldMaintenanceAsync(long orderId);
+    Task<ServiceResult<OrderStatsDto>> GetStatsAsync(string userId, bool allUsers);
     Task<ServiceResult<OrderDto>> CreateAsync(OrderDto dto);
     Task<ServiceResult<OrderDto>> CreateMaintenanceAsync(OrderMaintenanceRequestDto dto);
     Task<ServiceResult<bool>> UpdateAsync(long id, OrderDto dto);

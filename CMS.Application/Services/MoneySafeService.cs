@@ -34,6 +34,7 @@ public class MoneySafeService : IMoneySafeService
             Name = safe.Name,
             Notes = safe.Notes,
             Active = safe.Active,
+            IsMultiCurrency = safe.IsMultiCurrency,
             OpeningBalance = safe.OpeningBalance,
             OpeningBalanceCurrency = safe.OpeningBalanceCurrency,
             ManagerId = safe.ManagerId,
@@ -45,7 +46,9 @@ public class MoneySafeService : IMoneySafeService
             CreatedAtUtc = safe.CreatedAtUtc,
             CreatedBy = safe.CreatedBy ?? "",
             UpdatedAtUtc = safe.UpdatedAtUtc,
-            UpdatedBy = safe.UpdatedBy ?? ""
+            UpdatedBy = safe.UpdatedBy ?? "",
+            Balance = 0,
+            BalanceCurrency = 0
         };
     }
 
@@ -58,6 +61,7 @@ public class MoneySafeService : IMoneySafeService
             Name = dto.Name,
             Notes = dto.Notes,
             Active = dto.Active,
+            IsMultiCurrency = dto.IsMultiCurrency,
             OpeningBalance = dto.OpeningBalance,
             OpeningBalanceCurrency = dto.OpeningBalanceCurrency,
             ManagerId = dto.ManagerId,
@@ -76,7 +80,7 @@ public class MoneySafeService : IMoneySafeService
         if (dto.Cod <= 0)
             return "Cod is required and must be greater than zero";
 
-        var codQuery = _dbContext.MoneySafe.Where(m => !m.IsDeleted && m.Cod == dto.Cod);
+        var codQuery = _dbContext.MoneySafe.Where(m => !m.IsDeleted && m.Cod == dto.Cod && m.TypeId == dto.TypeId);
 
         if (isUpdate && currentId.HasValue)
             codQuery = codQuery.Where(m => m.Id != currentId.Value);
@@ -128,7 +132,7 @@ public class MoneySafeService : IMoneySafeService
                 return "CategoryId is invalid";
 
             var categoryExists = await _dbContext.MoneySafeCategory
-                .AnyAsync(c => c.Id == dto.CategoryId.Value);
+                .AnyAsync(c => c.Id == dto.CategoryId.Value && !c.IsDeleted);
 
             if (!categoryExists)
                 return $"Category with Id {dto.CategoryId.Value} was not found";
@@ -163,6 +167,21 @@ public class MoneySafeService : IMoneySafeService
         return ServiceResult<List<MoneySafeDto>>.Ok(safes.Select(ToDto).ToList());
     }
 
+    public async Task<ServiceResult<List<MoneySafeTypeDto>>> GetAllTypesAsync()
+    {
+        var types = await _dbContext.MoneySafeType
+            .AsNoTracking()
+            .Select(z => new MoneySafeTypeDto
+            {
+                Id = z.Id,
+                Name= z.Name,
+                Cod = z.Cod
+            })
+            .ToListAsync();
+
+        return ServiceResult<List<MoneySafeTypeDto>>.Ok(types);
+    }
+
     public async Task<ServiceResult<MoneySafeDto?>> GetByIdAsync(long id)
     {
         if (id <= 0)
@@ -192,6 +211,7 @@ public class MoneySafeService : IMoneySafeService
         }
 
         var safe = ToEntity(dto);
+        safe.Id = 0;
 
         _dbContext.MoneySafe.Add(safe);
         await _dbContext.SaveChangesAsync();
@@ -232,6 +252,7 @@ public class MoneySafeService : IMoneySafeService
         existing.Name = dto.Name;
         existing.Notes = dto.Notes;
         existing.Active = dto.Active;
+        existing.IsMultiCurrency = dto.IsMultiCurrency;
         existing.OpeningBalance = dto.OpeningBalance;
         existing.OpeningBalanceCurrency = dto.OpeningBalanceCurrency;
         existing.ManagerId = dto.ManagerId;

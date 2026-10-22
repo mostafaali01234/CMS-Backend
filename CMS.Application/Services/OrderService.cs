@@ -293,7 +293,7 @@ public class OrderService : IOrderService
 
     public async Task<ServiceResult<List<OrderDto>>> GetDoneByCustomerIdAsync(long customerId)
     {
-        var orders = await WithIncludes(_dbContext.Order.Where(z => !z.IsDeleted && z.CustomerId == customerId && z.Status == OrderStatus.تام))
+        var orders = await WithIncludes(_dbContext.Order.Where(z => !z.IsDeleted && z.CustomerId == customerId && (z.OldOrderId == null || z.Category != OrderCategory.صيانة) && z.Status == OrderStatus.تام))
             .AsNoTracking()
             .ToListAsync();
 
@@ -400,6 +400,62 @@ public class OrderService : IOrderService
             return ServiceResult<OrderDto?>.NotFound("Order not found");
 
         return ServiceResult<OrderDto?>.Ok(ToDto(order));
+    }
+
+    public async Task<ServiceResult<OrderStatsDto>> GetStatsAsync(string userId, bool allUsers)
+    {
+        // CreatedAtUtc is stored in UTC, so convert the local day/month boundaries to UTC
+        var todayStart = DateTime.Today.ToUniversalTime();
+        var tomorrowStart = DateTime.Today.AddDays(1).ToUniversalTime();
+        var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).ToUniversalTime();
+        var nextMonthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).ToUniversalTime();
+
+        var query = _dbContext.Order
+            .AsNoTracking()
+            .Where(o => !o.IsDeleted && o.CreatedAtUtc >= monthStart && o.CreatedAtUtc < nextMonthStart);
+
+        if (!allUsers)
+        {
+            var employeeId = await _dbContext.Employee
+                .Where(e => e.UserId == userId && !e.IsDeleted)
+                .Select(e => (long?)e.Id)
+                .FirstOrDefaultAsync();
+
+            if (employeeId is null)
+                return ServiceResult<OrderStatsDto>.Ok(new OrderStatsDto());   // user has no employee record
+
+            query = query.Where(o => o.SellerId == employeeId);
+        }
+
+        var rows = await query
+            .GroupBy(o => new { IsMaintenance = o.OldOrderId != null, o.Status })
+            .Select(g => new
+            {
+                g.Key.IsMaintenance,
+                g.Key.Status,
+                Month = g.Count(),
+                Today = g.Count(o => o.CreatedAtUtc >= todayStart && o.CreatedAtUtc < tomorrowStart)
+            })
+            .ToListAsync();
+
+        // regular orders only (no old_order_id)
+        int Month(OrderStatus? s) => rows.Where(r => !r.IsMaintenance && (s is null || r.Status == s)).Sum(r => r.Month);
+        int Today(OrderStatus? s) => rows.Where(r => !r.IsMaintenance && (s is null || r.Status == s)).Sum(r => r.Today);
+
+        // maintenance orders only
+        int MaintMonth(OrderStatus? s) => rows.Where(r => r.IsMaintenance && (s is null || r.Status == s)).Sum(r => r.Month);
+
+        return ServiceResult<OrderStatsDto>.Ok(new OrderStatsDto
+        {
+            TotalToday = Today(null),
+            TotalMonth = Month(null),
+            CompletedToday = Today(OrderStatus.تام),
+            CompletedMonth = Month(OrderStatus.تام),
+            CancelledToday = Today(OrderStatus.ملغي),
+            CancelledMonth = Month(OrderStatus.ملغي),
+            MaintenanceMonth = MaintMonth(null),
+            MaintenanceCompletedMonth = MaintMonth(OrderStatus.تام),
+        });
     }
 
     public async Task<ServiceResult<OrderDto>> CreateAsync(OrderDto dto)
