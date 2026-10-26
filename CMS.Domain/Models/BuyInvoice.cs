@@ -58,6 +58,8 @@ namespace CMS.Domain.Models
 
         public virtual ICollection<BuyInvoiceItem> Items { get; set; } = new List<BuyInvoiceItem>();
         public virtual ICollection<SupplierPayment> Payments { get; set; } = new List<SupplierPayment>();
+        [InverseProperty(nameof(OriginalInvoice))]
+        public virtual ICollection<BuyInvoice> Returns { get; set; } = new List<BuyInvoice>();
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

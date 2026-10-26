@@ -64,6 +64,30 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("remaining_amount")]
         public decimal RemainingAmount { get; set; }
 
+        [JsonPropertyName("paid_amount_currency")] 
+        public decimal PaidAmountCurrency { get; set; }
+
+        [JsonPropertyName("remaining_amount_currency")]
+        public decimal RemainingAmountCurrency { get; set; }
+
+        [JsonPropertyName("returned_amount")] 
+        public decimal ReturnedAmount { get; set; }
+
+        [JsonPropertyName("returned_amount_currency")] 
+        public decimal ReturnedAmountCurrency { get; set; }
+
+        [JsonPropertyName("refunded_amount")] 
+        public decimal RefundedAmount { get; set; }
+
+        [JsonPropertyName("refunded_amount_currency")] 
+        public decimal RefundedAmountCurrency { get; set; }
+
+        [JsonPropertyName("order_advance_amount")] 
+        public decimal OrderAdvanceAmount { get; set; }
+
+        [JsonPropertyName("order_advance_amount_currency")]
+        public decimal OrderAdvanceAmountCurrency { get; set; }
+
         [JsonPropertyName("shift_id")]
         public long? ShiftId { get; set; }
 
@@ -132,6 +156,10 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("product_net_total")]
         public decimal ProductNetTotal { get; set; }
+
+        [JsonPropertyName("original_item_id")] 
+        public long? OriginalItemId { get; set; }
+
     }
 
     public class SaleInvoicePaymentDto
@@ -171,5 +199,49 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
+
+        [JsonPropertyName("type")] 
+        public PaymentType Type { get; set; }
+
+    }
+
+
+
+    public class SaleReturnRequestDto
+    {
+        [JsonPropertyName("date")] public DateTime Date { get; set; }
+        [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
+        [JsonPropertyName("original_invoice_id")] public long OriginalInvoiceId { get; set; }
+        [JsonPropertyName("auditor_id")] public long AuditorId { get; set; }
+        // BuyReturnItemRequestDto is just { original_item_id, quantity }, reused as is
+        [JsonPropertyName("items")] public List<BuyReturnItemRequestDto> Items { get; set; } = new();
+    }
+
+    public class SaleReturnableInvoiceDto
+    {
+        [JsonPropertyName("invoice_id")] public long InvoiceId { get; set; }
+        [JsonPropertyName("number")] public long Number { get; set; }
+        [JsonPropertyName("date")] public DateTime Date { get; set; }
+        [JsonPropertyName("customer_id")] public long CustomerId { get; set; }
+        [JsonPropertyName("customer_name")] public string CustomerName { get; set; } = string.Empty;
+        [JsonPropertyName("items")] public List<ReturnableItemDto> Items { get; set; } = new();   // ReturnableItemDto is reused
+    }
+
+    public class CustomerPaymentAllocationRequest
+    {
+        [JsonPropertyName("date")] public DateTime Date { get; set; }
+        [JsonPropertyName("customer_id")] public long CustomerId { get; set; }
+        [JsonPropertyName("money_safe_id")] public long MoneySafeId { get; set; }
+        [JsonPropertyName("amount")] public decimal Amount { get; set; }
+        [JsonPropertyName("amount_currency")] public decimal AmountCurrency { get; set; }
+        [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
+        [JsonPropertyName("auditor_id")] public long AuditorId { get; set; }
+        [JsonPropertyName("allocations")] public List<PaymentAllocationDto> Allocations { get; set; } = new();   // reused
+    }
+
+    public class RefundableDto
+    {
+        [JsonPropertyName("amount")] public decimal Amount { get; set; }
+        [JsonPropertyName("amount_currency")] public decimal AmountCurrency { get; set; }
     }
 }

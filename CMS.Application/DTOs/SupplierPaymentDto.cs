@@ -20,6 +20,8 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("supplier_name")]
         public string SupplierName { get; set; } = string.Empty;
+        [JsonPropertyName("invoice_number")]
+        public long? InvoiceNumber { get; set; }
 
         [JsonPropertyName("invoice_id")]
         public long? InvoiceId { get; set; }
@@ -56,5 +58,24 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
+    }
+
+    public class PaymentAllocationDto
+    {
+        [JsonPropertyName("invoice_id")] public long InvoiceId { get; set; }
+        [JsonPropertyName("amount")] public decimal Amount { get; set; }
+        [JsonPropertyName("amount_currency")] public decimal AmountCurrency { get; set; }
+    }
+
+    public class SupplierPaymentAllocationRequest
+    {
+        [JsonPropertyName("date")] public DateTime Date { get; set; }
+        [JsonPropertyName("supplier_id")] public long SupplierId { get; set; }
+        [JsonPropertyName("money_safe_id")] public long MoneySafeId { get; set; }
+        [JsonPropertyName("amount")] public decimal Amount { get; set; }
+        [JsonPropertyName("amount_currency")] public decimal AmountCurrency { get; set; }
+        [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
+        [JsonPropertyName("auditor_id")] public long AuditorId { get; set; }
+        [JsonPropertyName("allocations")] public List<PaymentAllocationDto> Allocations { get; set; } = new();
     }
 }

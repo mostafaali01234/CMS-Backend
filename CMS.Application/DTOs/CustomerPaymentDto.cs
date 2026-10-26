@@ -40,6 +40,13 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("notes")]
         public string Notes { get; set; } = string.Empty;
 
+        [JsonPropertyName("invoice_number")]
+        public long? InvoiceNumber { get; set; }
+
+        [JsonPropertyName("invoice_order_id")]
+        public long? InvoiceOrderId { get; set; }
+
+
         [JsonPropertyName("auditor_id")]
         public long AuditorId { get; set; }
 

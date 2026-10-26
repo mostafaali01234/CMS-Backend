@@ -178,6 +178,10 @@ public class SupplierService : ISupplierService
             _logger.LogWarning("Validation failed while creating supplier: {Error}", validationError);
             return ServiceResult<Supplier>.Failed(validationError);
         }
+        supplier.Id = 0;
+        supplier.IsDeleted = false;
+        supplier.DeletedAtUtc = null;
+        supplier.City = null;
 
         _dbContext.Supplier.Add(supplier);
         await _dbContext.SaveChangesAsync();

@@ -1,10 +1,11 @@
 ﻿// Services/SaleInvoiceService.cs
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.DTOs;
 using CMS.Domain.Enums;
 using CMS.Domain.Models;
-using CMS.Application.Interfaces.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -28,7 +29,11 @@ public class SaleInvoiceService : ISaleInvoiceService
 
     private SaleInvoiceDto ToDto(SaleInvoice invoice)
     {
-        var paidAmount = invoice.Payments?.Where(p => !p.IsDeleted).Sum(p => p.Amount) ?? 0;
+        var payments = invoice.Payments?.Where(p => !p.IsDeleted).ToList() ?? new List<CustomerPayment>();
+        var paid = SaleBalances.Paid(payments);
+        var refunded = SaleBalances.Refunded(payments);
+        var returned = SaleBalances.Returned(invoice.Returns);
+        var isSale = invoice.Type == InvoiceType.Sale;
 
         return new SaleInvoiceDto
         {
@@ -48,8 +53,14 @@ public class SaleInvoiceService : ISaleInvoiceService
             Discount = invoice.Discount,
             NetTotal = invoice.NetTotal,
             NetTotalCurrency = invoice.NetTotalCurrency,
-            PaidAmount = paidAmount,
-            RemainingAmount = invoice.NetTotal - paidAmount,
+            PaidAmount = paid.Egp,
+            PaidAmountCurrency = paid.Cur,
+            ReturnedAmount = returned.Egp,
+            ReturnedAmountCurrency = returned.Cur,
+            RefundedAmount = refunded.Egp,
+            RefundedAmountCurrency = refunded.Cur,
+            RemainingAmount = isSale ? Math.Max(0, invoice.NetTotal - returned.Egp - paid.Egp) : 0,
+            RemainingAmountCurrency = isSale ? Math.Max(0, invoice.NetTotalCurrency - returned.Cur - paid.Cur) : 0,
             ShiftId = invoice.ShiftId,
             Items = invoice.Items?.Where(i => !i.IsDeleted).Select(i => new SaleInvoiceItemDto
             {
@@ -66,7 +77,8 @@ public class SaleInvoiceService : ISaleInvoiceService
                 ProductQuantity = i.ProductQuantity,
                 ProductTotal = i.ProductTotal,
                 ProductDiscount = i.ProductDiscount,
-                ProductNetTotal = i.ProductNetTotal
+                ProductNetTotal = i.ProductNetTotal,
+                OriginalItemId = i.OriginalItemId
             }).ToList() ?? new List<SaleInvoiceItemDto>(),
             Payments = invoice.Payments?.Where(z => !z.IsDeleted).Select(z => new SaleInvoicePaymentDto
             {
@@ -81,7 +93,8 @@ public class SaleInvoiceService : ISaleInvoiceService
                 CreatedAtUtc = z.CreatedAtUtc,
                 CreatedBy = z.CreatedBy ?? "",
                 UpdatedAtUtc = z.UpdatedAtUtc,
-                UpdatedBy = z.UpdatedBy ?? ""
+                UpdatedBy = z.UpdatedBy ?? "",
+                Type = z.Type
             }).ToList() ?? new List<SaleInvoicePaymentDto>(),
             CreatedAtUtc = invoice.CreatedAtUtc,
             CreatedBy = invoice.CreatedBy ?? "",
@@ -96,7 +109,8 @@ public class SaleInvoiceService : ISaleInvoiceService
             .Include(i => i.Customer)
             .Include(i => i.Auditor)
             .Include(i => i.OriginalInvoice)
-            .Include(i => i.Payments!.Where(p => !p.IsDeleted))
+            .Include(i => i.Returns.Where(r => !r.IsDeleted))
+            .Include(i => i.Payments!.Where(p => !p.IsDeleted)).ThenInclude(z => z.Auditor)
             .Include(i => i.Items!.Where(x => !x.IsDeleted))
                 .ThenInclude(x => x.Product)
             .Include(i => i.Items!.Where(x => !x.IsDeleted))
@@ -115,10 +129,24 @@ public class SaleInvoiceService : ISaleInvoiceService
             item.ProductTotal = Math.Round(item.ProductPrice * item.ProductQuantity, 2);
             item.ProductNetTotal = Math.Round(item.ProductTotal - item.ProductDiscount, 2);
         }
+        var egp = dto.Items.Where(i => i.PriceType == PriceType.Egyptian).ToList();
+        var cur = dto.Items.Where(i => i.PriceType == PriceType.Currency).ToList();
 
-        dto.Total = Math.Round(dto.Items.Sum(i => i.ProductTotal), 2);
-        dto.Discount = Math.Round(dto.Items.Sum(i => i.ProductDiscount), 2);
+        dto.Total = Math.Round(egp.Sum(i => i.ProductTotal), 2);
+        dto.Discount = Math.Round(egp.Sum(i => i.ProductDiscount), 2);
         dto.NetTotal = Math.Round(dto.Total - dto.Discount, 2);
+        dto.NetTotalCurrency = Math.Round(cur.Sum(i => i.ProductNetTotal), 2);
+    }
+    private async Task<long> NextNumberAsync()
+    {
+        await _dbContext.Database.ExecuteSqlRawAsync(@"
+        DECLARE @r int;
+        EXEC @r = sp_getapplock @Resource = 'sale_invoice_number', @LockMode = 'Exclusive',
+                                @LockOwner = 'Transaction', @LockTimeout = 10000;
+        IF @r < 0 THROW 50001, 'Could not lock invoice numbering', 1;");
+
+        var max = await _dbContext.SaleInvoice.IgnoreQueryFilters().MaxAsync(i => (long?)i.Number) ?? 0;
+        return max + 1;
     }
 
     // Centralized validation used by both Create and Update.
@@ -127,21 +155,9 @@ public class SaleInvoiceService : ISaleInvoiceService
         if (dto is null)
             return "Invoice payload is required";
 
-        // --- Number (required + unique) ---
-        if (dto.Number <= 0)
-            return "Number is required and must be greater than zero";
-
-        var numberQuery = _dbContext.SaleInvoice.Where(i => !i.IsDeleted && i.Number == dto.Number);
-
-        if (isUpdate && currentId.HasValue)
-            numberQuery = numberQuery.Where(i => i.Id != currentId.Value);
-
-        if (await numberQuery.AnyAsync())
-            return $"An invoice with number {dto.Number} already exists";
-
         // --- Type ---
-        if (!Enum.IsDefined(typeof(InvoiceType), dto.Type))
-            return "Type is not a valid value";
+        if (dto.Type != InvoiceType.Sale)
+            return "Use the return endpoints for Sale_Return invoices";
 
         // --- Date ---
         if (dto.Date == default)
@@ -182,6 +198,11 @@ public class SaleInvoiceService : ISaleInvoiceService
 
             if (!orderExists)
                 return $"Order with Id {dto.OrderId.Value} was not found";
+
+            var orderCustomer = await _dbContext.Order.Where(o => o.Id == dto.OrderId.Value)
+                .Select(o => o.CustomerId).FirstAsync();
+            if (orderCustomer != dto.CustomerId)
+                return $"Order {dto.OrderId.Value} does not belong to customer {dto.CustomerId}";
         }
 
         // --- OriginalInvoice (optional FK, must be a different invoice from the same customer) ---
@@ -267,6 +288,34 @@ public class SaleInvoiceService : ISaleInvoiceService
         return null; // no validation errors
     }
 
+    private async Task<string?> ValidatePaymentsAsync(List<SaleInvoicePaymentDto>? payments, decimal netEgp, decimal netCur)
+    {
+        if (payments is null || payments.Count == 0) return null;
+
+        var safeIds = payments.Select(p => p.MoneySafeId).Distinct().ToList();
+        var safes = await _dbContext.MoneySafe.AsNoTracking()
+            .Where(m => safeIds.Contains(m.Id) && !m.IsDeleted).ToListAsync();
+
+        foreach (var p in payments)
+        {
+            var safe = safes.FirstOrDefault(m => m.Id == p.MoneySafeId);
+            if (safe is null) return $"Money safe with Id {p.MoneySafeId} was not found";
+            if (!safe.Active) return $"Money safe '{safe.Name}' is not active";
+            if (p.Amount < 0 || p.AmountCurrency < 0) return "Payment amounts cannot be negative";
+            if (p.Amount == 0 && p.AmountCurrency == 0) return "Each payment needs an amount or a currency amount";
+            if (p.AmountCurrency > 0 && !safe.IsMultiCurrency)
+                return $"Money safe '{safe.Name}' does not accept currency amounts";
+            if (!string.IsNullOrWhiteSpace(p.Notes) && p.Notes.Length > NotesMaxLength)
+                return $"Payment notes cannot exceed {NotesMaxLength} characters";
+        }
+
+        if (payments.Sum(p => p.Amount) > netEgp)
+            return "Payments cannot exceed the invoice net total";
+        if (payments.Sum(p => p.AmountCurrency) > netCur)
+            return "Currency payments cannot exceed the invoice net total in currency";
+        return null;
+    }
+
     public async Task<ServiceResult<List<SaleInvoiceDto>>> GetAllAsync()
     {
         var invoices = await WithIncludes(_dbContext.SaleInvoice.Where(z => !z.IsDeleted))
@@ -302,16 +351,41 @@ public class SaleInvoiceService : ISaleInvoiceService
 
         RecalculateTotals(dto);
 
+        // advance payments of this order that fit in the invoice get attached to it (oldest first)
+        var advances = new List<CustomerPayment>();
+        if (dto.OrderId.HasValue)
+        {
+            var pending = await _dbContext.CustomerPayment
+                .Where(p => !p.IsDeleted && p.Type == PaymentType.Advance_Payment && p.InvoiceId == null
+                            && p.AdvancePaymentOrderId == dto.OrderId && p.CustomerId == dto.CustomerId)
+                .OrderBy(p => p.Date).ThenBy(p => p.Id)
+                .ToListAsync();
+
+            decimal e = 0, c = 0;
+            foreach (var p in pending)
+            {
+                if (e + p.Amount > dto.NetTotal || c + p.AmountCurrency > dto.NetTotalCurrency) continue;
+                advances.Add(p);
+                e += p.Amount;
+                c += p.AmountCurrency;
+            }
+        }
+
+        var paymentError = await ValidatePaymentsAsync(dto.Payments,
+            dto.NetTotal - advances.Sum(a => a.Amount),
+            dto.NetTotalCurrency - advances.Sum(a => a.AmountCurrency));
+        if (paymentError is not null)
+            return ServiceResult<SaleInvoiceDto>.Failed(paymentError);
+
         var invoice = new SaleInvoice
         {
-            Number = dto.Number,
-            Type = dto.Type,
+            Type = InvoiceType.Sale,
             Date = dto.Date,
-            Notes = dto.Notes,
+            Notes = dto.Notes ?? "",
             CustomerId = dto.CustomerId,
             AuditorId = dto.AuditorId,
             OrderId = dto.OrderId,
-            OriginalInvoiceId = dto.OriginalInvoiceId,
+            OriginalInvoiceId = null,
             Total = dto.Total,
             Discount = dto.Discount,
             NetTotal = dto.NetTotal,
@@ -329,32 +403,39 @@ public class SaleInvoiceService : ISaleInvoiceService
                 ProductTotal = i.ProductTotal,
                 ProductDiscount = i.ProductDiscount,
                 ProductNetTotal = i.ProductNetTotal
+            }).ToList(),
+            Payments = (dto.Payments ?? new()).Select(p => new CustomerPayment
+            {
+                Date = p.PaymentDate == default ? dto.Date : p.PaymentDate,
+                CustomerId = dto.CustomerId,
+                Type = PaymentType.Regular_Payment,
+                MoneySafeId = p.MoneySafeId,
+                Amount = p.Amount,
+                AmountCurrency = p.AmountCurrency,
+                Notes = p.Notes ?? "",
+                AuditorId = dto.AuditorId
             }).ToList()
         };
+        foreach (var a in advances) invoice.Payments.Add(a);   // the FK is filled when EF saves
 
         var strategy = _dbContext.Database.CreateExecutionStrategy();
-
         await strategy.ExecuteAsync(async () =>
         {
-            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
-
+            using var tx = await _dbContext.Database.BeginTransactionAsync();
+            invoice.Number = await NextNumberAsync();
             _dbContext.SaleInvoice.Add(invoice);
             await _dbContext.SaveChangesAsync();
-
-            await dbTransaction.CommitAsync();
+            await tx.CommitAsync();
         });
 
-        _logger.LogInformation("Sale invoice created with Id {InvoiceId} (Number {Number}, {ItemCount} items)",
-            invoice.Id, invoice.Number, invoice.Items.Count);
+        _logger.LogInformation("Sale invoice {InvoiceId} created (Number {Number}, {Advances} advance payments attached)",
+            invoice.Id, invoice.Number, advances.Count);
 
-        var created = await WithIncludes(_dbContext.SaleInvoice)
-            .AsNoTracking()
-            .FirstAsync(i => i.Id == invoice.Id);
-
+        var created = await WithIncludes(_dbContext.SaleInvoice).AsNoTracking().FirstAsync(i => i.Id == invoice.Id);
         return ServiceResult<SaleInvoiceDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, SaleInvoiceDto dto)
+    public async Task<ServiceResult<bool>> UpdateAsync(long id, SaleInvoiceDto dto, bool isSuperAdmin = false)
     {
         if (dto is null)
             return ServiceResult<bool>.Failed("Invoice payload is required");
@@ -370,9 +451,27 @@ public class SaleInvoiceService : ISaleInvoiceService
         if (existing is null)
             return ServiceResult<bool>.NotFound("Invoice not found");
 
-        var hasPayments = existing.Payments.Any(p => !p.IsDeleted);
-        if (hasPayments)
-            return ServiceResult<bool>.Failed("This invoice has recorded payments and can no longer be edited");
+        if (existing.Type != InvoiceType.Sale)
+            return ServiceResult<bool>.Failed("Use the return endpoints for Sale_Return invoices");
+
+        var payments = existing.Payments.Where(p => !p.IsDeleted).ToList();
+        var hasReturns = await _dbContext.SaleInvoice.AnyAsync(r => !r.IsDeleted && r.OriginalInvoiceId == id);
+
+        if (!isSuperAdmin && payments.Count > 0)
+            return ServiceResult<bool>.Failed("This invoice has payments and can no longer be edited");
+        if (!isSuperAdmin && hasReturns)
+            return ServiceResult<bool>.Failed("This invoice has returns and can no longer be edited");
+
+        if (hasReturns)   // SuperAdmin on an invoice with returns: header only
+        {
+            existing.Date = dto.Date;
+            existing.Notes = dto.Notes ?? "";
+            await _dbContext.SaveChangesAsync();
+            return ServiceResult<bool>.Ok(true);
+        }
+
+        if (payments.Count > 0 && dto.CustomerId != existing.CustomerId)
+            return ServiceResult<bool>.Failed("The customer of an invoice with payments cannot be changed");
 
         var validationError = await ValidateAsync(dto, isUpdate: true, currentId: id);
         if (validationError is not null)
@@ -383,13 +482,22 @@ public class SaleInvoiceService : ISaleInvoiceService
 
         RecalculateTotals(dto);
 
+        if (payments.Count > 0)
+        {
+            var paid = SaleBalances.Paid(payments);
+            if (dto.NetTotal < paid.Egp)
+                return ServiceResult<bool>.Failed("Net total cannot be less than the amount already paid");
+            if (dto.NetTotalCurrency < paid.Cur)
+                return ServiceResult<bool>.Failed("Net total in currency cannot be less than the currency already paid");
+        }
+
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
         {
             using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
 
-            existing.Number = dto.Number;
+            //existing.Number = dto.Number;
             existing.Type = dto.Type;
             existing.Date = dto.Date;
             existing.Notes = dto.Notes;
@@ -442,34 +550,293 @@ public class SaleInvoiceService : ISaleInvoiceService
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> DeleteAsync(long id)
+    public async Task<ServiceResult<bool>> DeleteAsync(long id, bool isSuperAdmin = false)
     {
         var invoice = await _dbContext.SaleInvoice
-            .Include(i => i.Items)
-            .Include(i => i.Payments)
+            .Include(i => i.Items).Include(i => i.Payments)
             .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
-
         if (invoice is null)
             return ServiceResult<bool>.NotFound("Invoice not found");
 
-        var hasPayments = invoice.Payments.Any(p => !p.IsDeleted);
-        if (hasPayments)
-            return ServiceResult<bool>.Failed("This invoice has recorded payments and cannot be deleted");
+        var payments = invoice.Payments.Where(p => !p.IsDeleted).ToList();
+        var returns = invoice.Type == InvoiceType.Sale
+            ? await _dbContext.SaleInvoice.Include(r => r.Items).Include(r => r.Payments)
+                .Where(r => !r.IsDeleted && r.OriginalInvoiceId == id).ToListAsync()
+            : new List<SaleInvoice>();
+
+        var linked = payments.Count > 0 || returns.Count > 0;
+        if (!isSuperAdmin && linked)
+            return ServiceResult<bool>.Failed("Delete the payments and returns of this invoice first");
 
         var now = DateTime.UtcNow;
-
-        invoice.IsDeleted = true;
-        invoice.DeletedAtUtc = now;
-
-        foreach (var item in invoice.Items.Where(i => !i.IsDeleted))
+        foreach (var r in returns)
         {
-            item.IsDeleted = true;
-            item.DeletedAtUtc = now;
+            foreach (var p in r.Payments.Where(p => !p.IsDeleted)) { p.IsDeleted = true; p.DeletedAtUtc = now; }
+            foreach (var it in r.Items) { it.IsDeleted = true; it.DeletedAtUtc = now; }
+            r.IsDeleted = true; r.DeletedAtUtc = now;
         }
+        foreach (var p in payments) { p.IsDeleted = true; p.DeletedAtUtc = now; }
+        foreach (var it in invoice.Items.Where(i => !i.IsDeleted)) { it.IsDeleted = true; it.DeletedAtUtc = now; }
+        invoice.IsDeleted = true; invoice.DeletedAtUtc = now;
 
         await _dbContext.SaveChangesAsync();
+        _logger.LogWarning("Sale invoice {InvoiceId} deleted with {P} payments and {R} returns", id, payments.Count, returns.Count);
+        return ServiceResult<bool>.Ok(true);
+    }
 
-        _logger.LogInformation("Sale invoice with Id {InvoiceId} soft-deleted successfully", id);
+
+    //-----------------------
+
+
+    private async Task<List<SaleInvoiceDto>> UnpaidAsync(IQueryable<SaleInvoice> query)
+    {
+        var list = await query
+            .Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale)
+            .Include(i => i.Customer)
+            .Include(i => i.Payments!.Where(p => !p.IsDeleted))
+            .Include(i => i.Returns.Where(r => !r.IsDeleted))
+            .OrderBy(i => i.Date).ThenBy(i => i.Id)
+            .AsNoTracking().ToListAsync();
+
+        return list.Select(ToDto).Where(d => d.RemainingAmount > 0 || d.RemainingAmountCurrency > 0).ToList();
+    }
+
+    public async Task<ServiceResult<List<SaleInvoiceDto>>> GetUnpaidByCustomerAsync(long customerId) =>
+        customerId <= 0
+            ? ServiceResult<List<SaleInvoiceDto>>.Failed("A valid customer Id is required")
+            : ServiceResult<List<SaleInvoiceDto>>.Ok(await UnpaidAsync(_dbContext.SaleInvoice.Where(i => i.CustomerId == customerId)));
+
+    public async Task<ServiceResult<List<SaleInvoiceDto>>> GetUnpaidByOrderAsync(long orderId) =>
+        orderId <= 0
+            ? ServiceResult<List<SaleInvoiceDto>>.Failed("A valid order Id is required")
+            : ServiceResult<List<SaleInvoiceDto>>.Ok(await UnpaidAsync(_dbContext.SaleInvoice.Where(i => i.OrderId == orderId)));
+
+    public async Task<ServiceResult<List<SaleInvoiceDto>>> GetSaleByCustomerAsync(long customerId)
+    {
+        var list = await _dbContext.SaleInvoice
+            .Where(i => !i.IsDeleted && i.CustomerId == customerId && i.Type == InvoiceType.Sale)
+            .Include(i => i.Customer)
+            .OrderByDescending(i => i.Date).ThenByDescending(i => i.Id)
+            .AsNoTracking().ToListAsync();
+        return ServiceResult<List<SaleInvoiceDto>>.Ok(list.Select(ToDto).ToList());
+    }
+
+    // the order's data to start an invoice from (nothing is saved)
+    public async Task<ServiceResult<SaleInvoiceDto>> GetDraftFromOrderAsync(long orderId)
+    {
+        var order = await _dbContext.Order
+            .Include(o => o.Customer)
+            .Include(o => o.Items.Where(i => !i.IsDeleted)).ThenInclude(i => i.Product)   // drop the filter if OrderItem has no IsDeleted
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == orderId && !o.IsDeleted);
+        if (order is null)
+            return ServiceResult<SaleInvoiceDto>.NotFound("Order not found");
+
+        var adv = await _dbContext.CustomerPayment
+            .Where(p => !p.IsDeleted && p.Type == PaymentType.Advance_Payment && p.InvoiceId == null
+                        && p.AdvancePaymentOrderId == orderId)
+            .Select(p => new { p.Amount, p.AmountCurrency }).ToListAsync();
+
+        return ServiceResult<SaleInvoiceDto>.Ok(new SaleInvoiceDto
+        {
+            OrderId = order.Id,
+            CustomerId = order.CustomerId,
+            CustomerName = order.Customer?.Name ?? "",
+            OrderNetTotal = order.NetTotal,
+            OrderAdvanceAmount = adv.Sum(a => a.Amount),
+            OrderAdvanceAmountCurrency = adv.Sum(a => a.AmountCurrency),
+            OrderItems = order.Items.Select(i => new SaleInvoiceItemDto
+            {
+                ProductId = i.ProductId,
+                ProductName = i.Product?.Name ?? "",
+                ProductPrice = i.ProductPrice,
+                ProductQuantity = i.ProductQuantity,
+                ProductDiscount = i.ProductDiscount
+            }).ToList()
+        });
+    }
+
+    //------------------
+
+    public async Task<ServiceResult<SaleReturnableInvoiceDto>> GetReturnableAsync(long invoiceId, long? excludeReturnId)
+    {
+        var original = await _dbContext.SaleInvoice
+            .Where(i => !i.IsDeleted && i.Id == invoiceId && i.Type == InvoiceType.Sale)
+            .Include(i => i.Customer)
+            .Include(i => i.Items!.Where(x => !x.IsDeleted)).ThenInclude(x => x.Product)
+            .Include(i => i.Items!.Where(x => !x.IsDeleted)).ThenInclude(x => x.Store)
+            .AsNoTracking().FirstOrDefaultAsync();
+        if (original is null)
+            return ServiceResult<SaleReturnableInvoiceDto>.NotFound("Sale invoice not found");
+
+        var returned = await ReturnedQuantitiesAsync(original.Items.Select(i => i.Id).ToList(), excludeReturnId);
+
+        return ServiceResult<SaleReturnableInvoiceDto>.Ok(new SaleReturnableInvoiceDto
+        {
+            InvoiceId = original.Id,
+            Number = original.Number,
+            Date = original.Date,
+            CustomerId = original.CustomerId,
+            CustomerName = original.Customer?.Name ?? "",
+            Items = original.Items.Select(i =>
+            {
+                var done = returned.GetValueOrDefault(i.Id);
+                return new ReturnableItemDto
+                {
+                    ItemId = i.Id,
+                    ProductId = i.ProductId,
+                    ProductName = i.Product?.Name ?? "",
+                    StoreName = i.Store?.Name ?? "",
+                    PriceType = i.PriceType.ToString(),
+                    ProductPrice = i.ProductPrice,
+                    ProductDiscount = i.ProductDiscount,
+                    OriginalQuantity = i.ProductQuantity,
+                    ReturnedQuantity = done,
+                    ReturnableQuantity = Math.Max(0, i.ProductQuantity - done)
+                };
+            }).ToList()
+        });
+    }
+
+    private async Task<Dictionary<long, decimal>> ReturnedQuantitiesAsync(List<long> itemIds, long? excludeReturnId) =>
+        await _dbContext.SaleInvoiceItem
+            .Where(r => !r.IsDeleted && r.OriginalItemId != null && itemIds.Contains(r.OriginalItemId.Value)
+                        && r.InvoiceId != (excludeReturnId ?? 0) && !r.Invoice!.IsDeleted)
+            .GroupBy(r => r.OriginalItemId!.Value)
+            .Select(g => new { ItemId = g.Key, Qty = g.Sum(x => x.ProductQuantity) })
+            .ToDictionaryAsync(x => x.ItemId, x => x.Qty);
+
+    private async Task<(string? Error, SaleInvoice? Original, List<SaleInvoiceItem> Items)> PrepareReturnAsync(
+        SaleReturnRequestDto req, long? currentId)
+    {
+        var items = new List<SaleInvoiceItem>();
+        if (req is null) return ("Return payload is required", null, items);
+        if (req.Date == default) return ("Date is required", null, items);
+        if (!string.IsNullOrWhiteSpace(req.Notes) && req.Notes.Length > NotesMaxLength)
+            return ($"Notes cannot exceed {NotesMaxLength} characters", null, items);
+
+        if (!await _dbContext.Employee.AnyAsync(e => e.Id == req.AuditorId && !e.IsDeleted))
+            return ($"Auditor (Employee) with Id {req.AuditorId} was not found", null, items);
+
+        var original = await _dbContext.SaleInvoice.Include(i => i.Items).AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == req.OriginalInvoiceId && !i.IsDeleted && i.Type == InvoiceType.Sale);
+        if (original is null) return ("Original sale invoice not found", null, items);
+
+        if (req.Items is null || req.Items.Count == 0) return ("At least one item is required", original, items);
+
+        var ids = req.Items.Select(i => i.OriginalItemId).ToList();
+        if (ids.Distinct().Count() != ids.Count) return ("An item can appear only once", original, items);
+
+        var returned = await ReturnedQuantitiesAsync(ids, currentId);
+
+        foreach (var ri in req.Items)
+        {
+            var orig = original.Items.FirstOrDefault(x => x.Id == ri.OriginalItemId && !x.IsDeleted);
+            if (orig is null)
+                return ($"Item {ri.OriginalItemId} does not belong to invoice {original.Number}", original, items);
+            if (ri.Quantity <= 0) return ("Quantity must be greater than zero", original, items);
+
+            var available = orig.ProductQuantity - returned.GetValueOrDefault(orig.Id);
+            if (ri.Quantity > available)
+                return ($"Quantity for product {orig.ProductId} exceeds the returnable quantity ({available})", original, items);
+
+            var total = Math.Round(orig.ProductPrice * ri.Quantity, 2);
+            var discount = orig.ProductQuantity > 0
+                ? Math.Round(orig.ProductDiscount * ri.Quantity / orig.ProductQuantity, 2) : 0;
+
+            items.Add(new SaleInvoiceItem
+            {
+                ProductId = orig.ProductId,
+                StoreId = orig.StoreId,
+                ProjectId = orig.ProjectId,
+                ProductNotes = orig.ProductNotes,
+                PriceType = orig.PriceType,
+                ProductPrice = orig.ProductPrice,
+                ProductQuantity = ri.Quantity,
+                ProductTotal = total,
+                ProductDiscount = discount,
+                ProductNetTotal = total - discount,
+                OriginalItemId = orig.Id
+            });
+        }
+        return (null, original, items);
+    }
+
+    private static void ApplyReturnTotals(SaleInvoice invoice, List<SaleInvoiceItem> items)
+    {
+        var egp = items.Where(i => i.PriceType == PriceType.Egyptian).ToList();
+        var cur = items.Where(i => i.PriceType == PriceType.Currency).ToList();
+        invoice.Total = Math.Round(egp.Sum(i => i.ProductTotal), 2);
+        invoice.Discount = Math.Round(egp.Sum(i => i.ProductDiscount), 2);
+        invoice.NetTotal = Math.Round(invoice.Total - invoice.Discount, 2);
+        invoice.NetTotalCurrency = Math.Round(cur.Sum(i => i.ProductNetTotal), 2);
+    }
+
+    public async Task<ServiceResult<SaleInvoiceDto>> CreateReturnAsync(SaleReturnRequestDto req)
+    {
+        var (error, original, items) = await PrepareReturnAsync(req, null);
+        if (error is not null)
+            return ServiceResult<SaleInvoiceDto>.Failed(error);
+
+        var invoice = new SaleInvoice
+        {
+            Type = InvoiceType.Sale_Return,
+            Date = req.Date,
+            Notes = req.Notes ?? "",
+            CustomerId = original!.CustomerId,
+            AuditorId = req.AuditorId,
+            OrderId = original.OrderId,
+            OriginalInvoiceId = original.Id,
+            ShiftId = original.ShiftId,
+            Items = items
+        };
+        ApplyReturnTotals(invoice, items);
+
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            using var tx = await _dbContext.Database.BeginTransactionAsync();
+            invoice.Number = await NextNumberAsync();
+            _dbContext.SaleInvoice.Add(invoice);
+            await _dbContext.SaveChangesAsync();
+            await tx.CommitAsync();
+        });
+
+        var created = await WithIncludes(_dbContext.SaleInvoice).AsNoTracking().FirstAsync(i => i.Id == invoice.Id);
+        return ServiceResult<SaleInvoiceDto>.Ok(ToDto(created));
+    }
+
+    public async Task<ServiceResult<bool>> UpdateReturnAsync(long id, SaleReturnRequestDto req, bool isSuperAdmin = false)
+    {
+        var existing = await _dbContext.SaleInvoice.Include(i => i.Items).Include(i => i.Payments)
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted && i.Type == InvoiceType.Sale_Return);
+        if (existing is null) return ServiceResult<bool>.NotFound("Return invoice not found");
+
+        if (req is not null && req.OriginalInvoiceId != existing.OriginalInvoiceId)
+            return ServiceResult<bool>.Failed("The original invoice of a return cannot be changed");
+
+        var refunded = SaleBalances.Refunded(existing.Payments);
+        if (refunded.Egp > 0 || refunded.Cur > 0)
+        {
+            if (!isSuperAdmin)
+                return ServiceResult<bool>.Failed("This return has refunds and can no longer be edited");
+        }
+
+        var (error, original, items) = await PrepareReturnAsync(req!, id);
+        if (error is not null) return ServiceResult<bool>.Failed(error);
+
+        existing.Date = req!.Date;
+        existing.Notes = req.Notes ?? "";
+        existing.AuditorId = req.AuditorId;
+        ApplyReturnTotals(existing, items);
+
+        if (existing.NetTotal < refunded.Egp || existing.NetTotalCurrency < refunded.Cur)
+            return ServiceResult<bool>.Failed("The return value cannot be less than what was already refunded");
+
+        _dbContext.SaleInvoiceItem.RemoveRange(existing.Items);
+        foreach (var item in items) item.InvoiceId = id;
+        await _dbContext.SaleInvoiceItem.AddRangeAsync(items);
+        await _dbContext.SaveChangesAsync();
         return ServiceResult<bool>.Ok(true);
     }
 }

@@ -11,4 +11,7 @@ public interface ICustomerPaymentService
     Task<ServiceResult<CustomerPaymentDto>> CreateAsync(CustomerPaymentDto dto);
     Task<ServiceResult<bool>> UpdateAsync(long id, CustomerPaymentDto dto);
     Task<ServiceResult<bool>> DeleteAsync(long id);
+
+    Task<ServiceResult<List<CustomerPaymentDto>>> CreateAllocatedAsync(CustomerPaymentAllocationRequest request);
+    Task<ServiceResult<RefundableDto>> GetRefundableAsync(long returnInvoiceId);
 }

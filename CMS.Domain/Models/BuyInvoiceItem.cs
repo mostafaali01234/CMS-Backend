@@ -53,6 +53,10 @@ namespace CMS.Domain.Models
         [Column(name: "product_net_total")]
         public decimal ProductNetTotal { get; set; }
 
+        [Column(name: "original_item_id")]
+        public long? OriginalItemId { get; set; }
+        [ForeignKey(nameof(OriginalItemId))]
+        public virtual BuyInvoiceItem? OriginalItem { get; set; }
 
 
         public DateTime CreatedAtUtc { get; set; }

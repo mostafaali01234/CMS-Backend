@@ -264,6 +264,10 @@ namespace CMS.Infrastructure.Persistence
                 e.Property(x => x.ProductNetTotal).HasPrecision(18, 2); 
                 e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(i => i.OriginalItem)
+                .WithMany()
+                .HasForeignKey(i => i.OriginalItemId)
+                .OnDelete(DeleteBehavior.NoAction);
             });
             
             modelBuilder.Entity<SaleInvoiceItem>(e =>
@@ -275,6 +279,9 @@ namespace CMS.Infrastructure.Persistence
                 e.Property(x => x.ProductNetTotal).HasPrecision(18, 2);
                 e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(i => i.OriginalItem).WithMany()
+                    .HasForeignKey(i => i.OriginalItemId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
             
             modelBuilder.Entity<SupplierPayment>(e =>

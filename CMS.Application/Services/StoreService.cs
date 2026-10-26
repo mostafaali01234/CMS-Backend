@@ -174,6 +174,7 @@ public class StoreService : IStoreService
         }
 
         var store = ToEntity(dto);
+        store.Id = 0;
 
         _dbContext.Store.Add(store);
         await _dbContext.SaveChangesAsync();

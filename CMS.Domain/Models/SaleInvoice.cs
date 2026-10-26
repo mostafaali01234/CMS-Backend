@@ -62,7 +62,9 @@ namespace CMS.Domain.Models
         public virtual Shift? Shift { get; set; }
 
         public virtual ICollection<SaleInvoiceItem> Items { get; set; } = new List<SaleInvoiceItem>();
-        public virtual ICollection<CustomerPayment> Payments { get; set; } = new List<CustomerPayment>();
+        public virtual ICollection<CustomerPayment> Payments { get; set; } = new List<CustomerPayment>(); 
+        [InverseProperty(nameof(OriginalInvoice))]
+        public virtual ICollection<SaleInvoice> Returns { get; set; } = new List<SaleInvoice>();
 
 
         public DateTime CreatedAtUtc { get; set; }

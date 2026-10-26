@@ -60,6 +60,18 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("remaining_amount")]
         public decimal RemainingAmount { get; set; }
 
+        [JsonPropertyName("returned_amount")]
+        public decimal ReturnedAmount { get; set; }
+
+        [JsonPropertyName("paid_amount_currency")]
+        public decimal PaidAmountCurrency { get; set; }
+
+        [JsonPropertyName("remaining_amount_currency")]
+        public decimal RemainingAmountCurrency { get; set; }
+
+        [JsonPropertyName("returned_amount_currency")]
+        public decimal ReturnedAmountCurrency { get; set; }
+
         [JsonPropertyName("items")]
         public List<BuyInvoiceItemDto> Items { get; set; } = new();
 
@@ -122,6 +134,9 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("product_net_total")]
         public decimal ProductNetTotal { get; set; }
+
+        [JsonPropertyName("original_item_id")]
+        public long? OriginalItemId { get; set; }
     }
 
     public class BuyInvoicePaymentDto
@@ -161,5 +176,45 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
+    }
+
+    public class BuyReturnItemRequestDto
+    {
+        [JsonPropertyName("original_item_id")] public long OriginalItemId { get; set; }
+        [JsonPropertyName("quantity")] public decimal Quantity { get; set; }
+    }
+
+    public class BuyReturnRequestDto
+    {
+        //[JsonPropertyName("number")] public long Number { get; set; }
+        [JsonPropertyName("date")] public DateTime Date { get; set; }
+        [JsonPropertyName("notes")] public string Notes { get; set; } = string.Empty;
+        [JsonPropertyName("original_invoice_id")] public long OriginalInvoiceId { get; set; }
+        [JsonPropertyName("auditor_id")] public long AuditorId { get; set; }
+        [JsonPropertyName("items")] public List<BuyReturnItemRequestDto> Items { get; set; } = new();
+    }
+
+    public class ReturnableItemDto
+    {
+        [JsonPropertyName("item_id")] public long ItemId { get; set; }
+        [JsonPropertyName("product_id")] public long ProductId { get; set; }
+        [JsonPropertyName("product_name")] public string ProductName { get; set; } = string.Empty;
+        [JsonPropertyName("store_name")] public string StoreName { get; set; } = string.Empty;
+        [JsonPropertyName("price_type")] public string PriceType { get; set; } = string.Empty;
+        [JsonPropertyName("product_price")] public decimal ProductPrice { get; set; }
+        [JsonPropertyName("product_discount")] public decimal ProductDiscount { get; set; }   // the original line discount
+        [JsonPropertyName("original_quantity")] public decimal OriginalQuantity { get; set; }
+        [JsonPropertyName("returned_quantity")] public decimal ReturnedQuantity { get; set; }
+        [JsonPropertyName("returnable_quantity")] public decimal ReturnableQuantity { get; set; }
+    }
+
+    public class ReturnableInvoiceDto
+    {
+        [JsonPropertyName("invoice_id")] public long InvoiceId { get; set; }
+        [JsonPropertyName("number")] public long Number { get; set; }
+        [JsonPropertyName("date")] public DateTime Date { get; set; }
+        [JsonPropertyName("supplier_id")] public long SupplierId { get; set; }
+        [JsonPropertyName("supplier_name")] public string SupplierName { get; set; } = string.Empty;
+        [JsonPropertyName("items")] public List<ReturnableItemDto> Items { get; set; } = new();
     }
 }

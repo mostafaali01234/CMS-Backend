@@ -47,4 +47,8 @@ public class SupplierPaymentController : ApiControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _paymentService.DeleteAsync(id));
+
+    [HttpPost("allocate")]
+    public async Task<IActionResult> CreateAllocated([FromBody] SupplierPaymentAllocationRequest request) =>
+        ToActionResult(await _paymentService.CreateAllocatedAsync(request));
 }

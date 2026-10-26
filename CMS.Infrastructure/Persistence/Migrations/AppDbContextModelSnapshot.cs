@@ -156,6 +156,9 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("auditor_id");
 
+                    b.Property<long?>("BuyInvoiceId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -227,6 +230,8 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasIndex("AuditorId");
 
+                    b.HasIndex("BuyInvoiceId");
+
                     b.HasIndex("OrderId")
                         .IsUnique()
                         .HasFilter("[order_id] IS NOT NULL");
@@ -262,6 +267,10 @@ namespace CMS.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<long?>("OriginalItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_item_id");
 
                     b.Property<int>("PriceType")
                         .HasColumnType("int")
@@ -318,6 +327,8 @@ namespace CMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("InvoiceId");
+
+                    b.HasIndex("OriginalItemId");
 
                     b.HasIndex("ProductId");
 
@@ -2769,6 +2780,10 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<long?>("OriginalItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_item_id");
+
                     b.Property<int>("PriceType")
                         .HasColumnType("int")
                         .HasColumnName("price_type");
@@ -2824,6 +2839,8 @@ namespace CMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("InvoiceId");
+
+                    b.HasIndex("OriginalItemId");
 
                     b.HasIndex("ProductId");
 
@@ -3590,6 +3607,10 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.BuyInvoice", null)
+                        .WithMany("Returns")
+                        .HasForeignKey("BuyInvoiceId");
+
                     b.HasOne("CMS.Domain.Models.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId");
@@ -3621,6 +3642,11 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.BuyInvoiceItem", "OriginalItem")
+                        .WithMany()
+                        .HasForeignKey("OriginalItemId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("CMS.Domain.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -3638,6 +3664,8 @@ namespace CMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Invoice");
+
+                    b.Navigation("OriginalItem");
 
                     b.Navigation("Product");
 
@@ -4272,7 +4300,7 @@ namespace CMS.Infrastructure.Migrations
                         .HasForeignKey("OrderId");
 
                     b.HasOne("CMS.Domain.Models.SaleInvoice", "OriginalInvoice")
-                        .WithMany()
+                        .WithMany("Returns")
                         .HasForeignKey("OriginalInvoiceId");
 
                     b.HasOne("CMS.Domain.Models.Shift", null)
@@ -4303,6 +4331,11 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.SaleInvoiceItem", "OriginalItem")
+                        .WithMany()
+                        .HasForeignKey("OriginalItemId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("CMS.Domain.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -4320,6 +4353,8 @@ namespace CMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Invoice");
+
+                    b.Navigation("OriginalItem");
 
                     b.Navigation("Product");
 
@@ -4603,6 +4638,8 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+
+                    b.Navigation("Returns");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.CountryState", b =>
@@ -4629,6 +4666,8 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+
+                    b.Navigation("Returns");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Shift", b =>

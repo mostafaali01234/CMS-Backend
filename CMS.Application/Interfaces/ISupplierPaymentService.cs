@@ -11,4 +11,6 @@ public interface ISupplierPaymentService
     Task<ServiceResult<SupplierPaymentDto>> CreateAsync(SupplierPaymentDto dto);
     Task<ServiceResult<bool>> UpdateAsync(long id, SupplierPaymentDto dto);
     Task<ServiceResult<bool>> DeleteAsync(long id);
+
+    Task<ServiceResult<List<SupplierPaymentDto>>> CreateAllocatedAsync(SupplierPaymentAllocationRequest request);
 }

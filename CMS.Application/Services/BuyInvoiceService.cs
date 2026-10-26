@@ -31,7 +31,14 @@ public class BuyInvoiceService : IBuyInvoiceService
 
     private BuyInvoiceDto ToDto(BuyInvoice invoice)
     {
-        var paidAmount = invoice.Payments?.Where(p => !p.IsDeleted).Sum(p => p.Amount) ?? 0;
+        var payments = invoice.Payments?.Where(p => !p.IsDeleted).ToList() ?? new List<SupplierPayment>();
+        var returns = invoice.Returns?.Where(r => !r.IsDeleted).ToList() ?? new List<BuyInvoice>();
+
+        var paidAmount = payments.Sum(p => p.Amount);
+        var paidCurrency = payments.Sum(p => p.AmountCurrency);
+        var returned = returns.Sum(r => r.NetTotal);
+        var returnedCurrency = returns.Sum(r => r.NetTotalCurrency);
+        var isBuy = invoice.Type == InvoiceType.Buy;
 
         return new BuyInvoiceDto
         {
@@ -52,7 +59,11 @@ public class BuyInvoiceService : IBuyInvoiceService
             NetTotal = invoice.NetTotal,
             NetTotalCurrency = invoice.NetTotalCurrency,
             PaidAmount = paidAmount,
-            RemainingAmount = invoice.NetTotal - paidAmount,
+            PaidAmountCurrency = paidCurrency,
+            ReturnedAmount = returned,
+            ReturnedAmountCurrency = returnedCurrency,
+            RemainingAmount = isBuy ? Math.Max(0, invoice.NetTotal - returned - paidAmount) : 0,
+            RemainingAmountCurrency = isBuy ? Math.Max(0, invoice.NetTotalCurrency - returnedCurrency - paidCurrency) : 0,
             Items = invoice.Items?.Where(i => !i.IsDeleted).Select(i => new BuyInvoiceItemDto
             {
                 Id = i.Id,
@@ -68,7 +79,8 @@ public class BuyInvoiceService : IBuyInvoiceService
                 ProductQuantity = i.ProductQuantity,
                 ProductTotal = i.ProductTotal,
                 ProductDiscount = i.ProductDiscount,
-                ProductNetTotal = i.ProductNetTotal
+                ProductNetTotal = i.ProductNetTotal,
+                OriginalItemId = i.OriginalItemId,
             }).ToList() ?? new List<BuyInvoiceItemDto>(),
             Payments = invoice.Payments?.Where(z => !z.IsDeleted).Select(z => new BuyInvoicePaymentDto
             {
@@ -98,13 +110,14 @@ public class BuyInvoiceService : IBuyInvoiceService
             .Include(i => i.Supplier)
             .Include(i => i.Auditor)
             .Include(i => i.OriginalInvoice)
-            .Include(i => i.Payments!.Where(p => !p.IsDeleted))
+            .Include(i => i.Payments!.Where(p => !p.IsDeleted)).ThenInclude(z => z.Auditor)
             .Include(i => i.Items!.Where(x => !x.IsDeleted))
                 .ThenInclude(x => x.Product)
             .Include(i => i.Items!.Where(x => !x.IsDeleted))
                 .ThenInclude(x => x.Store)
             .Include(i => i.Items!.Where(x => !x.IsDeleted))
-                .ThenInclude(x => x.Project);
+                .ThenInclude(x => x.Project)
+            .Include(i => i.Returns.Where(r => !r.IsDeleted));
     }
 
     // Recalculates each item's ProductTotal/ProductNetTotal, then the invoice-level
@@ -118,9 +131,30 @@ public class BuyInvoiceService : IBuyInvoiceService
             item.ProductNetTotal = Math.Round(item.ProductTotal - item.ProductDiscount, 2);
         }
 
-        dto.Total = Math.Round(dto.Items.Sum(i => i.ProductTotal), 2);
-        dto.Discount = Math.Round(dto.Items.Sum(i => i.ProductDiscount), 2);
+        var egp = dto.Items.Where(i => i.PriceType == PriceType.Egyptian).ToList();
+        var cur = dto.Items.Where(i => i.PriceType == PriceType.Currency).ToList();
+
+        dto.Total = Math.Round(egp.Sum(i => i.ProductTotal), 2);
+        dto.Discount = Math.Round(egp.Sum(i => i.ProductDiscount), 2);
         dto.NetTotal = Math.Round(dto.Total - dto.Discount, 2);
+        dto.NetTotalCurrency = Math.Round(cur.Sum(i => i.ProductNetTotal), 2);
+    }
+
+    private async Task<long> NextNumberAsync()
+    {
+        // one writer at a time until this transaction ends, so two saves can't read the same max
+        await _dbContext.Database.ExecuteSqlRawAsync(@"
+        DECLARE @r int;
+        EXEC @r = sp_getapplock @Resource = 'buy_invoice_number', @LockMode = 'Exclusive',
+                                @LockOwner = 'Transaction', @LockTimeout = 10000;
+        IF @r < 0 THROW 50001, 'Could not lock invoice numbering', 1;");
+
+        // includes soft-deleted rows, so a deleted invoice's number is never reused
+        var max = await _dbContext.BuyInvoice
+            .IgnoreQueryFilters()
+            .MaxAsync(i => (long?)i.Number) ?? 0;
+
+        return max + 1;
     }
 
     // Centralized validation used by both Create and Update.
@@ -129,22 +163,23 @@ public class BuyInvoiceService : IBuyInvoiceService
         if (dto is null)
             return "Invoice payload is required";
 
-        // --- Number (required + unique) ---
-        if (dto.Number <= 0)
-            return "Number is required and must be greater than zero";
+        //// --- Number (required + unique) ---
+        //if (dto.Number <= 0)
+        //    return "Number is required and must be greater than zero";
 
-        var numberQuery = _dbContext.BuyInvoice.Where(i => !i.IsDeleted && i.Number == dto.Number);
+        //var numberQuery = _dbContext.BuyInvoice.Where(i => !i.IsDeleted && i.Number == dto.Number);
 
-        if (isUpdate && currentId.HasValue)
-            numberQuery = numberQuery.Where(i => i.Id != currentId.Value);
+        //if (isUpdate && currentId.HasValue)
+        //    numberQuery = numberQuery.Where(i => i.Id != currentId.Value);
 
-        if (await numberQuery.AnyAsync())
-            return $"An invoice with number {dto.Number} already exists";
+        //if (await numberQuery.AnyAsync())
+        //    return $"An invoice with number {dto.Number} already exists";
 
         // --- Type ---
-        if (!Enum.IsDefined(typeof(InvoiceType), dto.Type))
-            return "Type is not a valid value";
-
+        if (dto.Type != InvoiceType.Buy && dto.Type != InvoiceType.Buy_Return)
+            return "Type must be Buy or Buy_Return for a buy invoice";
+        if (dto.Type != InvoiceType.Buy)
+            return "Use the return endpoints for Buy_Return invoices";
         // --- Date ---
         if (dto.Date == default)
             return "Date is required";
@@ -206,9 +241,9 @@ public class BuyInvoiceService : IBuyInvoiceService
                 return $"Original invoice {dto.OriginalInvoiceId.Value} does not belong to supplier {dto.SupplierId}";
         }
 
-        // --- NetTotalCurrency ---
-        if (dto.NetTotalCurrency < 0)
-            return "NetTotalCurrency cannot be negative";
+        //// --- NetTotalCurrency ---
+        //if (dto.NetTotalCurrency < 0)
+        //    return "NetTotalCurrency cannot be negative";
 
         // --- Items (at least one required) ---
         if (dto.Items is null || dto.Items.Count == 0)
@@ -269,6 +304,44 @@ public class BuyInvoiceService : IBuyInvoiceService
         return null; // no validation errors
     }
 
+    private async Task<string?> ValidatePaymentsAsync(
+    List<BuyInvoicePaymentDto>? payments, decimal netTotal, decimal netTotalCurrency, InvoiceType type)
+    {
+        if (payments is null || payments.Count == 0) return null;
+
+        if (type != InvoiceType.Buy)
+            return "Payments can only be recorded on Buy invoices";
+
+        var safeIds = payments.Select(p => p.MoneySafeId).Distinct().ToList();
+        var safes = await _dbContext.MoneySafe
+            .AsNoTracking()
+            .Where(m => safeIds.Contains(m.Id) && !m.IsDeleted)
+            .ToListAsync();
+
+        foreach (var p in payments)
+        {
+            var safe = safes.FirstOrDefault(m => m.Id == p.MoneySafeId);
+            if (safe is null) return $"Money safe with Id {p.MoneySafeId} was not found";
+            if (!safe.Active) return $"Money safe '{safe.Name}' is not active";
+            if (p.Amount < 0) return "Payment amount cannot be negative";
+            if (p.AmountCurrency < 0) return "Payment AmountCurrency cannot be negative";
+            if (p.Amount == 0 && p.AmountCurrency == 0)
+                return "Each payment needs an amount or a currency amount";
+            if (p.AmountCurrency > 0 && !safe.IsMultiCurrency)
+                return $"Money safe '{safe.Name}' does not accept currency amounts";
+            if (!string.IsNullOrWhiteSpace(p.Notes) && p.Notes.Length > NotesMaxLength)
+                return $"Payment notes cannot exceed {NotesMaxLength} characters";
+        }
+
+        if (payments.Sum(p => p.Amount) > netTotal)
+            return "Payments cannot exceed the invoice net total";
+
+        if (payments.Sum(p => p.AmountCurrency) > netTotalCurrency)
+            return "Currency payments cannot exceed the invoice net total in currency";
+
+        return null;
+    }
+
     public async Task<ServiceResult<List<BuyInvoiceDto>>> GetAllAsync()
     {
         var invoices = await WithIncludes(_dbContext.BuyInvoice.Where(z => !z.IsDeleted))
@@ -304,9 +377,13 @@ public class BuyInvoiceService : IBuyInvoiceService
 
         RecalculateTotals(dto);
 
+        var paymentError = await ValidatePaymentsAsync(dto.Payments, dto.NetTotal, dto.NetTotalCurrency, dto.Type);
+        if (paymentError is not null)
+            return ServiceResult<BuyInvoiceDto>.Failed(paymentError);
+
         var invoice = new BuyInvoice
         {
-            Number = dto.Number,
+            //Number = dto.Number,
             Type = dto.Type,
             Date = dto.Date,
             Notes = dto.Notes,
@@ -330,7 +407,17 @@ public class BuyInvoiceService : IBuyInvoiceService
                 ProductTotal = i.ProductTotal,
                 ProductDiscount = i.ProductDiscount,
                 ProductNetTotal = i.ProductNetTotal
-            }).ToList()
+            }).ToList(),
+            Payments = (dto.Payments ?? new()).Select(p => new SupplierPayment
+            {
+                Date = p.PaymentDate == default ? dto.Date : p.PaymentDate,
+                SupplierId = dto.SupplierId,
+                MoneySafeId = p.MoneySafeId,
+                Amount = p.Amount,
+                AmountCurrency = p.AmountCurrency,
+                Notes = p.Notes ?? "",
+                AuditorId = dto.AuditorId
+            }).ToList(),
         };
 
         var strategy = _dbContext.Database.CreateExecutionStrategy();
@@ -338,6 +425,8 @@ public class BuyInvoiceService : IBuyInvoiceService
         await strategy.ExecuteAsync(async () =>
         {
             using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+
+            invoice.Number = await NextNumberAsync();   // after the lock, inside the transaction
 
             _dbContext.BuyInvoice.Add(invoice);
             await _dbContext.SaveChangesAsync();
@@ -355,7 +444,7 @@ public class BuyInvoiceService : IBuyInvoiceService
         return ServiceResult<BuyInvoiceDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, BuyInvoiceDto dto)
+    public async Task<ServiceResult<bool>> UpdateAsync(long id, BuyInvoiceDto dto, bool isSuperAdmin = false)
     {
         if (dto is null)
             return ServiceResult<bool>.Failed("Invoice payload is required");
@@ -371,12 +460,34 @@ public class BuyInvoiceService : IBuyInvoiceService
         if (existing is null)
             return ServiceResult<bool>.NotFound("Invoice not found");
 
-        // Once a payment has been recorded against this invoice, its totals must stay
-        // stable — editing items/totals after money has moved would desynchronize the
-        // remaining balance.
-        var hasPayments = existing.Payments.Any(p => !p.IsDeleted);
-        if (hasPayments)
-            return ServiceResult<bool>.Failed("This invoice has recorded payments and can no longer be edited");
+        if (existing.Type != InvoiceType.Buy)
+            return ServiceResult<bool>.Failed("Use the return endpoints for Buy_Return invoices");
+
+        var payments = await _dbContext.SupplierPayment
+            .Where(p => !p.IsDeleted && p.InvoiceId == id)
+            .Select(p => new { p.Amount, p.AmountCurrency })
+            .ToListAsync();
+
+        var hasReturns = await _dbContext.BuyInvoice
+            .AnyAsync(r => !r.IsDeleted && r.OriginalInvoiceId == id);
+
+        if (!isSuperAdmin && payments.Count > 0)
+            return ServiceResult<bool>.Failed("This invoice has payments and can no longer be edited");
+        if (!isSuperAdmin && hasReturns)
+            return ServiceResult<bool>.Failed("This invoice has returns and can no longer be edited");
+
+        // SuperAdmin on an invoice with returns: header only, items and totals stay as they are
+        if (hasReturns)
+        {
+            existing.Date = dto.Date;
+            existing.Notes = dto.Notes ?? "";
+            await _dbContext.SaveChangesAsync();
+            return ServiceResult<bool>.Ok(true);
+        }
+
+        // SuperAdmin on an invoice with payments: the supplier is fixed, and totals can't drop below what was paid
+        if (payments.Count > 0 && dto.SupplierId != existing.SupplierId)
+            return ServiceResult<bool>.Failed("The supplier of an invoice with payments cannot be changed");
 
         var validationError = await ValidateAsync(dto, isUpdate: true, currentId: id);
         if (validationError is not null)
@@ -387,13 +498,21 @@ public class BuyInvoiceService : IBuyInvoiceService
 
         RecalculateTotals(dto);
 
+        if (payments.Count > 0)
+        {
+            if (dto.NetTotal < payments.Sum(p => p.Amount))
+                return ServiceResult<bool>.Failed("Net total cannot be less than the amount already paid");
+            if (dto.NetTotalCurrency < payments.Sum(p => p.AmountCurrency))
+                return ServiceResult<bool>.Failed("Net total in currency cannot be less than the currency already paid");
+        }
+
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
         {
             using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
 
-            existing.Number = dto.Number;
+            //existing.Number = dto.Number;
             existing.Type = dto.Type;
             existing.Date = dto.Date;
             existing.Notes = dto.Notes;
@@ -445,34 +564,301 @@ public class BuyInvoiceService : IBuyInvoiceService
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> DeleteAsync(long id)
+    public async Task<ServiceResult<bool>> DeleteAsync(long id, bool isSuperAdmin = false)
     {
         var invoice = await _dbContext.BuyInvoice
             .Include(i => i.Items)
-            .Include(i => i.Payments)
             .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
-
         if (invoice is null)
             return ServiceResult<bool>.NotFound("Invoice not found");
 
-        var hasPayments = invoice.Payments.Any(p => !p.IsDeleted);
-        if (hasPayments)
-            return ServiceResult<bool>.Failed("This invoice has recorded payments and cannot be deleted");
+        var payments = await _dbContext.SupplierPayment
+            .Where(p => !p.IsDeleted && p.InvoiceId == id).ToListAsync();
+
+        var returns = invoice.Type == InvoiceType.Buy
+            ? await _dbContext.BuyInvoice.Include(r => r.Items)
+                .Where(r => !r.IsDeleted && r.OriginalInvoiceId == id).ToListAsync()
+            : new List<BuyInvoice>();
+
+        if (!isSuperAdmin && (payments.Count > 0 || returns.Count > 0))
+            return ServiceResult<bool>.Failed("Delete the payments and returns of this invoice first");
 
         var now = DateTime.UtcNow;
 
-        invoice.IsDeleted = true;
-        invoice.DeletedAtUtc = now;
-
-        foreach (var item in invoice.Items.Where(i => !i.IsDeleted))
+        foreach (var p in payments) { p.IsDeleted = true; p.DeletedAtUtc = now; }
+        foreach (var r in returns)
         {
-            item.IsDeleted = true;
-            item.DeletedAtUtc = now;
+            foreach (var it in r.Items) { it.IsDeleted = true; it.DeletedAtUtc = now; }
+            r.IsDeleted = true; r.DeletedAtUtc = now;
         }
+        foreach (var it in invoice.Items) { it.IsDeleted = true; it.DeletedAtUtc = now; }
+        invoice.IsDeleted = true; invoice.DeletedAtUtc = now;
+
+        await _dbContext.SaveChangesAsync();   // one save: all or nothing
+
+        _logger.LogWarning("Invoice {InvoiceId} deleted with {Payments} payments and {Returns} returns",
+            id, payments.Count, returns.Count);
+        return ServiceResult<bool>.Ok(true);
+    }
+
+    public async Task<ServiceResult<List<BuyInvoiceDto>>> GetUnpaidBySupplierAsync(long supplierId)
+    {
+        if (supplierId <= 0)
+            return ServiceResult<List<BuyInvoiceDto>>.Failed("A valid supplier Id is required");
+
+        var invoices = await _dbContext.BuyInvoice
+            .Where(i => !i.IsDeleted && i.SupplierId == supplierId)
+            .Include(i => i.Payments!.Where(p => !p.IsDeleted))
+            .Include(i => i.Returns.Where(r => !r.IsDeleted))
+            .OrderBy(i => i.Date).ThenBy(i => i.Id)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var unpaid = invoices.Select(ToDto)
+            .Where(d => d.RemainingAmount > 0 || d.RemainingAmountCurrency > 0)
+            .ToList();
+        return ServiceResult<List<BuyInvoiceDto>>.Ok(unpaid);
+    }
+
+    ///------ Returns
+    ///
+
+    public async Task<ServiceResult<List<BuyInvoiceDto>>> GetBuyBySupplierAsync(long supplierId)
+    {
+        if (supplierId <= 0)
+            return ServiceResult<List<BuyInvoiceDto>>.Failed("A valid supplier Id is required");
+
+        // a light list for the invoice picker (no items or payments)
+        var invoices = await _dbContext.BuyInvoice
+            .Where(i => !i.IsDeleted && i.SupplierId == supplierId && i.Type == InvoiceType.Buy)
+            .Include(i => i.Supplier)
+            .OrderByDescending(i => i.Date).ThenByDescending(i => i.Id)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return ServiceResult<List<BuyInvoiceDto>>.Ok(invoices.Select(ToDto).ToList());
+    }
+
+    public async Task<ServiceResult<ReturnableInvoiceDto>> GetReturnableAsync(long invoiceId, long? excludeReturnId)
+    {
+        var original = await _dbContext.BuyInvoice
+            .Where(i => !i.IsDeleted && i.Id == invoiceId && i.Type == InvoiceType.Buy)
+            .Include(i => i.Supplier)
+            .Include(i => i.Items!.Where(x => !x.IsDeleted)).ThenInclude(x => x.Product)
+            .Include(i => i.Items!.Where(x => !x.IsDeleted)).ThenInclude(x => x.Store)
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
+
+        if (original is null)
+            return ServiceResult<ReturnableInvoiceDto>.NotFound("Buy invoice not found");
+
+        var itemIds = original.Items.Select(i => i.Id).ToList();
+        var returned = await ReturnedQuantitiesAsync(itemIds, excludeReturnId);
+
+        return ServiceResult<ReturnableInvoiceDto>.Ok(new ReturnableInvoiceDto
+        {
+            InvoiceId = original.Id,
+            Number = original.Number,
+            Date = original.Date,
+            SupplierId = original.SupplierId,
+            SupplierName = original.Supplier?.Name ?? "",
+            Items = original.Items.Select(i =>
+            {
+                var done = returned.GetValueOrDefault(i.Id);
+                return new ReturnableItemDto
+                {
+                    ItemId = i.Id,
+                    ProductId = i.ProductId,
+                    ProductName = i.Product?.Name ?? "",
+                    StoreName = i.Store?.Name ?? "",
+                    PriceType = i.PriceType.ToString(),
+                    ProductPrice = i.ProductPrice,
+                    ProductDiscount = i.ProductDiscount,
+                    OriginalQuantity = i.ProductQuantity,
+                    ReturnedQuantity = done,
+                    ReturnableQuantity = Math.Max(0, i.ProductQuantity - done)
+                };
+            }).ToList()
+        });
+    }
+
+    // quantity already returned per original item, optionally ignoring one return (when editing it)
+    private async Task<Dictionary<long, decimal>> ReturnedQuantitiesAsync(List<long> itemIds, long? excludeReturnId)
+    {
+        return await _dbContext.BuyInvoiceItem
+            .Where(r => !r.IsDeleted && r.OriginalItemId != null
+                        && itemIds.Contains(r.OriginalItemId.Value)
+                        && r.InvoiceId != (excludeReturnId ?? 0)
+                        && !r.Invoice!.IsDeleted)
+            .GroupBy(r => r.OriginalItemId!.Value)
+            .Select(g => new { ItemId = g.Key, Qty = g.Sum(x => x.ProductQuantity) })
+            .ToDictionaryAsync(x => x.ItemId, x => x.Qty);
+    }
+
+    // validates the request and builds the return's items from the original invoice
+    private async Task<(string? Error, BuyInvoice? Original, List<BuyInvoiceItem> Items)> PrepareReturnAsync(
+        BuyReturnRequestDto req, long? currentId)
+    {
+        var items = new List<BuyInvoiceItem>();
+
+        if (req is null) return ("Return payload is required", null, items);
+        //if (req.Number <= 0) return ("Number is required and must be greater than zero", null, items);
+
+        //var numberTaken = await _dbContext.BuyInvoice
+        //    .AnyAsync(i => !i.IsDeleted && i.Number == req.Number && i.Id != (currentId ?? 0));
+        //if (numberTaken) return ($"An invoice with number {req.Number} already exists", null, items);
+
+        if (req.Date == default) return ("Date is required", null, items);
+
+        if (!string.IsNullOrWhiteSpace(req.Notes) && req.Notes.Length > NotesMaxLength)
+            return ($"Notes cannot exceed {NotesMaxLength} characters", null, items);
+
+        var auditorExists = await _dbContext.Employee.AnyAsync(e => e.Id == req.AuditorId && !e.IsDeleted);
+        if (!auditorExists) return ($"Auditor (Employee) with Id {req.AuditorId} was not found", null, items);
+
+        var original = await _dbContext.BuyInvoice
+            .Include(i => i.Items)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == req.OriginalInvoiceId && !i.IsDeleted && i.Type == InvoiceType.Buy);
+        if (original is null) return ("Original buy invoice not found", null, items);
+
+        if (req.Items is null || req.Items.Count == 0)
+            return ("At least one item is required", original, items);
+
+        var ids = req.Items.Select(i => i.OriginalItemId).ToList();
+        if (ids.Distinct().Count() != ids.Count)
+            return ("An item can appear only once", original, items);
+
+        var returned = await ReturnedQuantitiesAsync(ids, currentId);
+
+        foreach (var ri in req.Items)
+        {
+            var orig = original.Items.FirstOrDefault(x => x.Id == ri.OriginalItemId && !x.IsDeleted);
+            if (orig is null)
+                return ($"Item {ri.OriginalItemId} does not belong to invoice {original.Number}", original, items);
+
+            if (ri.Quantity <= 0)
+                return ("Quantity must be greater than zero", original, items);
+
+            var available = orig.ProductQuantity - returned.GetValueOrDefault(orig.Id);
+            if (ri.Quantity > available)
+                return ($"Quantity for product {orig.ProductId} exceeds the returnable quantity ({available})", original, items);
+
+            var total = Math.Round(orig.ProductPrice * ri.Quantity, 2);
+            var discount = orig.ProductQuantity > 0
+                ? Math.Round(orig.ProductDiscount * ri.Quantity / orig.ProductQuantity, 2)
+                : 0;
+
+            items.Add(new BuyInvoiceItem
+            {
+                ProductId = orig.ProductId,
+                StoreId = orig.StoreId,
+                ProjectId = orig.ProjectId,
+                ProductNotes = orig.ProductNotes,
+                PriceType = orig.PriceType,
+                ProductPrice = orig.ProductPrice,
+                ProductQuantity = ri.Quantity,
+                ProductTotal = total,
+                ProductDiscount = discount,
+                ProductNetTotal = total - discount,
+                OriginalItemId = orig.Id
+            });
+        }
+
+        return (null, original, items);
+    }
+
+    private static void ApplyReturnTotals(BuyInvoice invoice, List<BuyInvoiceItem> items)
+    {
+        var egp = items.Where(i => i.PriceType == PriceType.Egyptian).ToList();
+        var cur = items.Where(i => i.PriceType == PriceType.Currency).ToList();
+
+        invoice.Total = Math.Round(egp.Sum(i => i.ProductTotal), 2);
+        invoice.Discount = Math.Round(egp.Sum(i => i.ProductDiscount), 2);
+        invoice.NetTotal = Math.Round(invoice.Total - invoice.Discount, 2);
+        invoice.NetTotalCurrency = Math.Round(cur.Sum(i => i.ProductNetTotal), 2);
+    }
+
+    public async Task<ServiceResult<BuyInvoiceDto>> CreateReturnAsync(BuyReturnRequestDto req)
+    {
+        var (error, original, items) = await PrepareReturnAsync(req, null);
+        if (error is not null)
+        {
+            _logger.LogWarning("Validation failed while creating buy return: {Error}", error);
+            return ServiceResult<BuyInvoiceDto>.Failed(error);
+        }
+
+        var invoice = new BuyInvoice
+        {
+            //Number = req.Number,
+            Type = InvoiceType.Buy_Return,
+            Date = req.Date,
+            Notes = req.Notes ?? "",
+            SupplierId = original!.SupplierId,
+            AuditorId = req.AuditorId,
+            OrderId = original.OrderId,
+            OriginalInvoiceId = original.Id,
+            Items = items
+        };
+        ApplyReturnTotals(invoice, items);
+
+
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            using var tx = await _dbContext.Database.BeginTransactionAsync();
+
+            invoice.Number = await NextNumberAsync();
+
+            _dbContext.BuyInvoice.Add(invoice);
+            await _dbContext.SaveChangesAsync();
+
+            await tx.CommitAsync();
+        });
+        //_dbContext.BuyInvoice.Add(invoice);
+        //await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Buy return {InvoiceId} created against invoice {OriginalId}", invoice.Id, original.Id);
+
+        var created = await WithIncludes(_dbContext.BuyInvoice)
+            .AsNoTracking()
+            .FirstAsync(i => i.Id == invoice.Id);
+
+        return ServiceResult<BuyInvoiceDto>.Ok(ToDto(created));
+    }
+
+    public async Task<ServiceResult<bool>> UpdateReturnAsync(long id, BuyReturnRequestDto req)
+    {
+        var existing = await _dbContext.BuyInvoice
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted && i.Type == InvoiceType.Buy_Return);
+
+        if (existing is null)
+            return ServiceResult<bool>.NotFound("Return invoice not found");
+
+        if (req is not null && req.OriginalInvoiceId != existing.OriginalInvoiceId)
+            return ServiceResult<bool>.Failed("The original invoice of a return cannot be changed");
+
+        var (error, original, items) = await PrepareReturnAsync(req!, id);
+        if (error is not null)
+        {
+            _logger.LogWarning("Validation failed while updating buy return {InvoiceId}: {Error}", id, error);
+            return ServiceResult<bool>.Failed(error);
+        }
+
+        //existing.Number = req!.Number;
+        existing.Date = req.Date;
+        existing.Notes = req.Notes ?? "";
+        existing.AuditorId = req.AuditorId;
+        ApplyReturnTotals(existing, items);
+
+        _dbContext.BuyInvoiceItem.RemoveRange(existing.Items);
+        foreach (var item in items) item.InvoiceId = id;
+        await _dbContext.BuyInvoiceItem.AddRangeAsync(items);
 
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("Buy invoice with Id {InvoiceId} soft-deleted successfully", id);
+        _logger.LogInformation("Buy return {InvoiceId} updated", id);
         return ServiceResult<bool>.Ok(true);
     }
 }

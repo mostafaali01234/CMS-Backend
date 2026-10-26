@@ -1,9 +1,10 @@
 ﻿// Services/SupplierPaymentService.cs
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
-using CMS.Domain.DTOs;
-using CMS.Domain.Models;
 using CMS.Application.Interfaces.Configuration;
+using CMS.Domain.DTOs;
+using CMS.Domain.Enums;
+using CMS.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -44,7 +45,8 @@ public class SupplierPaymentService : ISupplierPaymentService
             CreatedAtUtc = p.CreatedAtUtc,
             CreatedBy = p.CreatedBy ?? "",
             UpdatedAtUtc = p.UpdatedAtUtc,
-            UpdatedBy = p.UpdatedBy ?? ""
+            UpdatedBy = p.UpdatedBy ?? "",
+            InvoiceNumber = p.Invoice?.Number
         };
     }
 
@@ -53,11 +55,12 @@ public class SupplierPaymentService : ISupplierPaymentService
         return query
             .Include(p => p.Supplier)
             .Include(p => p.MoneySafe)
+            .Include(p => p.Invoice)
             .Include(p => p.Auditor);
     }
 
     // Centralized validation used by both Create and Update.
-    private async Task<string?> ValidateAsync(SupplierPaymentDto dto)
+    private async Task<string?> ValidateAsync(SupplierPaymentDto dto, long? currentId = null)
     {
         if (dto is null)
             return "Supplier payment payload is required";
@@ -91,6 +94,24 @@ public class SupplierPaymentService : ISupplierPaymentService
 
             if (invoice.SupplierId != dto.SupplierId)
                 return $"Invoice {dto.InvoiceId.Value} does not belong to supplier {dto.SupplierId}";
+
+            var others = _dbContext.SupplierPayment
+                .Where(p => !p.IsDeleted && p.InvoiceId == invoice.Id && p.Id != (currentId ?? 0));
+            var paidSoFar = await others.SumAsync(p => p.Amount);
+            var paidCurSoFar = await others.SumAsync(p => p.AmountCurrency);
+
+            var returns = await _dbContext.BuyInvoice
+                .Where(r => !r.IsDeleted && r.OriginalInvoiceId == invoice.Id)
+                .Select(r => new { r.NetTotal, r.NetTotalCurrency })
+                .ToListAsync();
+
+            var remaining = Math.Max(0, invoice.NetTotal - returns.Sum(r => r.NetTotal) - paidSoFar);
+            var remainingCur = Math.Max(0, invoice.NetTotalCurrency - returns.Sum(r => r.NetTotalCurrency) - paidCurSoFar);
+
+            if (dto.Amount > remaining)
+                return $"Amount exceeds the remaining amount ({remaining}) of invoice {invoice.Number}";
+            if (dto.AmountCurrency > remainingCur)
+                return $"Currency amount exceeds the remaining currency amount ({remainingCur}) of invoice {invoice.Number}";
         }
 
         // --- MoneySafe (required FK, must be active) ---
@@ -108,11 +129,12 @@ public class SupplierPaymentService : ISupplierPaymentService
             return $"Money safe '{safe.Name}' is not active";
 
         // --- Amount ---
-        if (dto.Amount <= 0)
-            return "Amount must be greater than zero";
-
-        if (dto.AmountCurrency < 0)
-            return "AmountCurrency cannot be negative";
+        if (dto.Amount < 0) return "Amount cannot be negative";
+        if (dto.AmountCurrency < 0) return "AmountCurrency cannot be negative";
+        if (dto.Amount == 0 && dto.AmountCurrency == 0)
+            return "Amount or AmountCurrency must be greater than zero";
+        if (dto.AmountCurrency > 0 && !safe.IsMultiCurrency)
+            return $"Money safe '{safe.Name}' does not accept currency amounts";
 
         // --- Notes (optional, length only) ---
         if (!string.IsNullOrWhiteSpace(dto.Notes) && dto.Notes.Length > NotesMaxLength)
@@ -200,7 +222,7 @@ public class SupplierPaymentService : ISupplierPaymentService
         if (existing is null)
             return ServiceResult<bool>.NotFound("Supplier payment not found");
 
-        var validationError = await ValidateAsync(dto);
+        var validationError = await ValidateAsync(dto, id);
         if (validationError is not null)
         {
             _logger.LogWarning("Validation failed while updating supplier payment {PaymentId}: {Error}", id, validationError);
@@ -244,5 +266,98 @@ public class SupplierPaymentService : ISupplierPaymentService
 
         _logger.LogInformation("Supplier payment with Id {PaymentId} soft-deleted successfully", id);
         return ServiceResult<bool>.Ok(true);
+    }
+
+    public async Task<ServiceResult<List<SupplierPaymentDto>>> CreateAllocatedAsync(SupplierPaymentAllocationRequest req)
+    {
+        if (req is null)
+            return ServiceResult<List<SupplierPaymentDto>>.Failed("Payment payload is required");
+
+        req.Allocations ??= new();
+
+        var headerError = await ValidateAsync(new SupplierPaymentDto
+        {
+            Date = req.Date,
+            SupplierId = req.SupplierId,
+            MoneySafeId = req.MoneySafeId,
+            Amount = req.Amount,
+            AmountCurrency = req.AmountCurrency,
+            Notes = req.Notes,
+            AuditorId = req.AuditorId
+        });
+        if (headerError is not null)
+            return ServiceResult<List<SupplierPaymentDto>>.Failed(headerError);
+
+        if (req.Allocations.Any(a => a.Amount < 0 || a.AmountCurrency < 0 || (a.Amount == 0 && a.AmountCurrency == 0)))
+            return ServiceResult<List<SupplierPaymentDto>>.Failed("Each allocation needs an amount or a currency amount");
+
+        var invoiceIds = req.Allocations.Select(a => a.InvoiceId).ToList();
+        if (invoiceIds.Distinct().Count() != invoiceIds.Count)
+            return ServiceResult<List<SupplierPaymentDto>>.Failed("An invoice can appear only once");
+
+        var allocated = req.Allocations.Sum(a => a.Amount);
+        var allocatedCur = req.Allocations.Sum(a => a.AmountCurrency);
+        if (allocated > req.Amount)
+            return ServiceResult<List<SupplierPaymentDto>>.Failed("Allocated amount cannot exceed the payment amount");
+        if (allocatedCur > req.AmountCurrency)
+            return ServiceResult<List<SupplierPaymentDto>>.Failed("Allocated currency amount cannot exceed the payment currency amount");
+
+        var invoices = await _dbContext.BuyInvoice
+            .Where(i => invoiceIds.Contains(i.Id) && !i.IsDeleted && i.SupplierId == req.SupplierId && i.Type == InvoiceType.Buy)
+            .Include(i => i.Payments!.Where(p => !p.IsDeleted))
+            .Include(i => i.Returns.Where(r => !r.IsDeleted))
+            .AsNoTracking()
+            .ToListAsync();
+
+        if (invoices.Count != invoiceIds.Count)
+            return ServiceResult<List<SupplierPaymentDto>>.Failed("One or more invoices were not found for this supplier");
+
+        foreach (var a in req.Allocations)
+        {
+            var inv = invoices.First(i => i.Id == a.InvoiceId);
+            var remaining = Math.Max(0, inv.NetTotal - inv.Returns.Sum(r => r.NetTotal) - inv.Payments.Sum(p => p.Amount));
+            var remainingCur = Math.Max(0, inv.NetTotalCurrency - inv.Returns.Sum(r => r.NetTotalCurrency) - inv.Payments.Sum(p => p.AmountCurrency));
+
+            if (a.Amount > remaining)
+                return ServiceResult<List<SupplierPaymentDto>>.Failed(
+                    $"Allocation for invoice {inv.Number} exceeds its remaining amount ({remaining})");
+            if (a.AmountCurrency > remainingCur)
+                return ServiceResult<List<SupplierPaymentDto>>.Failed(
+                    $"Currency allocation for invoice {inv.Number} exceeds its remaining currency amount ({remainingCur})");
+        }
+
+        // one row per invoice, plus one row with no invoice for whatever is left (the supplier balance)
+        var rows = req.Allocations
+            .Select(a => (InvoiceId: (long?)a.InvoiceId, a.Amount, Currency: a.AmountCurrency))
+            .ToList();
+
+        var rest = req.Amount - allocated;
+        var restCur = req.AmountCurrency - allocatedCur;
+        if (rest > 0 || restCur > 0) rows.Add((null, rest, restCur));
+
+        var entities = rows.Select(r => new SupplierPayment
+        {
+            Date = req.Date,
+            SupplierId = req.SupplierId,
+            InvoiceId = r.InvoiceId,
+            MoneySafeId = req.MoneySafeId,
+            Amount = r.Amount,
+            AmountCurrency = r.Currency,
+            Notes = req.Notes ?? "",
+            AuditorId = req.AuditorId
+        }).ToList();
+
+        _dbContext.SupplierPayment.AddRange(entities);
+        await _dbContext.SaveChangesAsync();   // one save: all rows or none
+
+        var ids = entities.Select(e => e.Id).ToList();
+        var created = await WithIncludes(_dbContext.SupplierPayment.Where(p => ids.Contains(p.Id)))
+            .AsNoTracking()
+            .ToListAsync();
+
+        _logger.LogInformation("Supplier payment split into {Count} rows for Supplier {SupplierId}",
+            entities.Count, req.SupplierId);
+
+        return ServiceResult<List<SupplierPaymentDto>>.Ok(created.Select(ToDto).ToList());
     }
 }

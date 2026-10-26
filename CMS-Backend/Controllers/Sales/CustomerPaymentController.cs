@@ -47,4 +47,14 @@ public class CustomerPaymentController : ApiControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _paymentService.DeleteAsync(id));
+
+    // POST: api/customer-payment/allocate
+    [HttpPost("allocate")]
+    public async Task<IActionResult> CreateAllocated([FromBody] CustomerPaymentAllocationRequest request) =>
+        ToActionResult(await _paymentService.CreateAllocatedAsync(request));
+
+    // GET: api/customer-payment/refundable/5   (5 = the return invoice id)
+    [HttpGet("refundable/{returnId:long}")]
+    public async Task<IActionResult> GetRefundable(long returnId) =>
+        ToActionResult(await _paymentService.GetRefundableAsync(returnId));
 }
