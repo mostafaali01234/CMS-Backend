@@ -27,6 +27,11 @@ public class ExpenseController : ApiControllerBase
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _expenseService.GetAllAsync());
 
+    // GET: api/expense/paged?page=1&pageSize=20&categoryId=2&expenseTypeId=5&dateFrom=2026-10-01&dateTo=2026-10-31
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] ExpenseFilterDto filter) =>
+        ToActionResult(await _expenseService.GetPagedAsync(filter));
+
     // GET: api/expense/5
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id) =>

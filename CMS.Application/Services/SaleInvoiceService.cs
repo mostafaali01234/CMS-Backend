@@ -1,4 +1,5 @@
 ﻿// Services/SaleInvoiceService.cs
+using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
@@ -8,6 +9,7 @@ using CMS.Domain.Enums;
 using CMS.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace CMS.Application.Services;
 
@@ -316,6 +318,56 @@ public class SaleInvoiceService : ISaleInvoiceService
         return null;
     }
 
+    private static readonly Expression<Func<SaleInvoice, bool>> IsUnpaid = i =>
+    i.Type == InvoiceType.Sale &&
+    (i.NetTotal - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotal)
+                - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.Amount) > 0
+  || i.NetTotalCurrency - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
+                        - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.AmountCurrency) > 0);
+
+    private static readonly Expression<Func<SaleInvoice, bool>> IsPaid = i =>
+        i.Type == InvoiceType.Sale &&
+        (i.NetTotal - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotal)
+                    - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.Amount) <= 0
+      && i.NetTotalCurrency - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
+                            - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.AmountCurrency) <= 0);
+
+    private IQueryable<SaleInvoice> ApplyFilters(IQueryable<SaleInvoice> q, SaleInvoiceFilterDto f)
+    {
+        if (f.Number.HasValue)
+        {
+            q = q.Where(i => i.Number == f.Number.Value);
+        }
+        else if (f.OrderId.HasValue)
+        {
+            q = q.Where(i => i.OrderId == f.OrderId.Value);    // an order search ignores the dates too
+        }
+        else
+        {
+            if (f.DateFrom.HasValue) { var from = f.DateFrom.Value.Date; q = q.Where(i => i.Date >= from); }
+            if (f.DateTo.HasValue) { var to = f.DateTo.Value.Date.AddDays(1); q = q.Where(i => i.Date < to); }
+        }
+
+        if (f.CustomerId.HasValue) q = q.Where(i => i.CustomerId == f.CustomerId.Value);
+        if (f.Type.HasValue) q = q.Where(i => i.Type == f.Type.Value);
+
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(i => i.Customer!.Name.Contains(s) || i.Notes.Contains(s));
+        }
+
+        return f.PayStatus switch
+        {
+            "unpaid" => q.Where(IsUnpaid),
+            "paid" => q.Where(IsPaid),
+            _ => q
+        };
+    }
+
+
+    //-----------------------
+
     public async Task<ServiceResult<List<SaleInvoiceDto>>> GetAllAsync()
     {
         var invoices = await WithIncludes(_dbContext.SaleInvoice.Where(z => !z.IsDeleted))
@@ -323,6 +375,49 @@ public class SaleInvoiceService : ISaleInvoiceService
             .ToListAsync();
 
         return ServiceResult<List<SaleInvoiceDto>>.Ok(invoices.Select(ToDto).ToList());
+    }
+    public async Task<ServiceResult<PagedResult<SaleInvoiceDto, InvoiceListSummaryDto>>> GetPagedAsync(SaleInvoiceFilterDto f)
+    {
+        var q = ApplyFilters(_dbContext.SaleInvoice.Where(i => !i.IsDeleted), f);
+
+        var rows = await q.Select(i => new
+        {
+            i.Type,
+            i.NetTotal,
+            i.NetTotalCurrency,
+            Paid = i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.Amount),
+            PaidCur = i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.AmountCurrency),
+            Ret = i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotal),
+            RetCur = i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
+        }).ToListAsync();
+
+        var summary = new InvoiceListSummaryDto();
+        foreach (var r in rows)
+        {
+            var sign = r.Type == InvoiceType.Sale_Return ? -1 : 1;
+            summary.Net += sign * r.NetTotal;
+            summary.NetCurrency += sign * r.NetTotalCurrency;
+            if (r.Type != InvoiceType.Sale) continue;
+            summary.Paid += r.Paid;
+            summary.Remaining += Math.Max(0, r.NetTotal - r.Ret - r.Paid);
+            summary.RemainingCurrency += Math.Max(0, r.NetTotalCurrency - r.RetCur - r.PaidCur);
+        }
+
+        var page = await q.OrderByDescending(i => i.Date).ThenByDescending(i => i.Id)
+            .Select(i => i.Id).ToPagedAsync(f);
+
+        var loaded = await WithIncludes(_dbContext.SaleInvoice.Where(i => page.Items.Contains(i.Id)))
+            .AsNoTracking().ToListAsync();
+
+        return ServiceResult<PagedResult<SaleInvoiceDto, InvoiceListSummaryDto>>.Ok(
+            new PagedResult<SaleInvoiceDto, InvoiceListSummaryDto>
+            {
+                Items = page.Items.Select(id => loaded.First(i => i.Id == id)).Select(ToDto).ToList(),
+                Total = page.Total,
+                Page = page.Page,
+                PageSize = page.PageSize,
+                Summary = summary
+            });
     }
 
     public async Task<ServiceResult<SaleInvoiceDto?>> GetByIdAsync(long id)
@@ -838,5 +933,65 @@ public class SaleInvoiceService : ISaleInvoiceService
         await _dbContext.SaleInvoiceItem.AddRangeAsync(items);
         await _dbContext.SaveChangesAsync();
         return ServiceResult<bool>.Ok(true);
+    }
+
+    //------------------
+
+    public async Task<(byte[] Bytes, string FileName)?> ExportAsync(long id)
+    {
+        var invoice = await WithIncludes(_dbContext.SaleInvoice.Where(i => !i.IsDeleted && i.Id == id))
+            .AsNoTracking().FirstOrDefaultAsync();
+        if (invoice is null) return null;
+
+        var d = ToDto(invoice);
+        var safeIds = d.Payments.Select(p => p.MoneySafeId).Distinct().ToList();
+        var safes = await _dbContext.MoneySafe.Where(m => safeIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id, m => m.Name);
+
+        string Kind(PaymentType t) => t switch
+        {
+            PaymentType.Advance_Payment => "دفعة مقدمة",
+            PaymentType.Refund_Payment => "استرداد",
+            _ => "دفعة"
+        };
+
+        var isReturn = d.Type == InvoiceType.Sale_Return;
+        var sheet = new InvoiceSheet
+        {
+            Title = isReturn ? "مرتجع بيع" : "فاتورة بيع",
+            PartyLabel = "العميل",
+            PartyName = d.CustomerName,
+            Number = d.Number,
+            Date = d.Date,
+            Notes = d.Notes,
+            Auditor = d.AuditorName,
+            OriginalNumber = d.OriginalInvoiceNumber,
+            OrderId = d.OrderId,
+            Items = d.Items.Select(i => new InvoiceSheetItem(i.ProductName, i.StoreName, i.ProjectName,
+                InvoiceExcel.PriceTypeLabel(i.PriceType), i.ProductPrice, i.ProductQuantity, i.ProductTotal,
+                i.ProductDiscount, i.ProductNetTotal, i.ProductNotes)).ToList(),
+            Payments = d.Payments.Select(p => new InvoiceSheetPayment(p.PaymentDate, Kind(p.Type),
+                safes.GetValueOrDefault(p.MoneySafeId, ""), p.Amount, p.AmountCurrency, p.Notes,
+                string.IsNullOrEmpty(p.AuditorName) ? p.CreatedBy : p.AuditorName)).ToList(),
+            Summary = new List<InvoiceSheetSummary>
+        {
+            new("الاجمالي", d.Total, 0),
+            new("الخصم", d.Discount, 0),
+            new("الصافي", d.NetTotal, d.NetTotalCurrency),
+        }
+        };
+
+        if (isReturn)
+        {
+            sheet.Summary.Add(new("المسترد", d.RefundedAmount, d.RefundedAmountCurrency));
+        }
+        else
+        {
+            sheet.Summary.Add(new("المرتجعات", d.ReturnedAmount, d.ReturnedAmountCurrency));
+            sheet.Summary.Add(new("المدفوع", d.PaidAmount, d.PaidAmountCurrency));
+            sheet.Summary.Add(new("المتبقي", d.RemainingAmount, d.RemainingAmountCurrency));
+        }
+
+        return (InvoiceExcel.Build(sheet), $"sale-invoice-{d.Number}.xlsx");
     }
 }

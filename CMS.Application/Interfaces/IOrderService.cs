@@ -7,7 +7,7 @@ namespace CMS.Application.Interfaces;
 public interface IOrderService
 {
     Task<ServiceResult<List<OrderDto>>> GetAllAsync();
-    Task<ServiceResult<PagedResult<OrderDto>>> GetPagedAsync(OrderQueryDto query);
+    Task<ServiceResult<OrdersPagedResult<OrderDto>>> GetPagedAsync(OrderQueryDto query);
     Task<ServiceResult<OrderDto?>> GetByIdAsync(long id);
     Task<ServiceResult<List<OrderDto>>> GetDoneByCustomerIdAsync(long customerId);
     Task<ServiceResult<List<OrderDto>>> GetOldMaintenanceAsync(long orderId);

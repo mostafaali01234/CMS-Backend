@@ -194,7 +194,7 @@ namespace CMS.Application.DTOs
         //[JsonPropertyName("country_state_id")] 
         public long? CountryStateId { get; set; }
     }
-    public class PagedResult<T>
+    public class OrdersPagedResult<T>
     {
         [JsonPropertyName("items")] public List<T> Items { get; set; } = new();
         [JsonPropertyName("total_count")] public int TotalCount { get; set; }

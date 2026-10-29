@@ -27,6 +27,11 @@ public class CarController : ApiControllerBase
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _carService.GetAllAsync());
 
+    // GET: api/car/paged?page=1&pageSize=20&search=...&driverId=3&expiry=any
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] CarFilterDto filter) =>
+        ToActionResult(await _carService.GetPagedAsync(filter));
+
     // GET: api/car/5
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id) =>

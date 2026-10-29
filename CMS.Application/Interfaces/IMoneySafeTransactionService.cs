@@ -7,6 +7,7 @@ namespace CMS.Application.Interfaces;
 public interface IMoneySafeTransactionService
 {
     Task<ServiceResult<List<MoneySafeTransactionDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResult<MoneySafeTransactionDto, MoneySafeTransactionSummaryDto>>> GetPagedAsync(MoneySafeTransactionFilterDto filter);
     Task<ServiceResult<MoneySafeTransactionDto?>> GetByIdAsync(long id);
     Task<ServiceResult<MoneySafeTransactionDto>> CreateAsync(MoneySafeTransactionDto dto);
     Task<ServiceResult<bool>> UpdateAsync(long id, MoneySafeTransactionDto dto);

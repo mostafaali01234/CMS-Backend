@@ -1,4 +1,5 @@
 ﻿// Models/DTOs/ExpenseDto.cs
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace CMS.Domain.DTOs
@@ -13,6 +14,9 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("expense_type_name")]
         public string ExpenseTypeName { get; set; } = string.Empty;
+
+        [Column(name: "date")]
+        public DateTime Date { get; set; }
 
         [JsonPropertyName("amount")]
         public decimal Amount { get; set; }
@@ -34,6 +38,12 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("money_safe_name")]
         public string MoneySafeName { get; set; } = string.Empty;
+
+        [JsonPropertyName("expense_category_id")]
+        public long? ExpenseCategoryId { get; set; }
+
+        [JsonPropertyName("expense_category_name")]
+        public string ExpenseCategoryName { get; set; } = string.Empty;
 
         [JsonPropertyName("auditor_id")]
         public long AuditorId { get; set; }

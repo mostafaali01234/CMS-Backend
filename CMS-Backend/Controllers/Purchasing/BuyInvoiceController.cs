@@ -1,3 +1,4 @@
+using CMS.Application.DTOs;
 using CMS.Application.Interfaces;
 using CMS.Domain.DTOs;
 using CMS_Backend.Controllers.Base;
@@ -26,6 +27,11 @@ public class BuyInvoiceController : ApiControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _invoiceService.GetAllAsync());
+
+    // GET: api/buy-invoice/paged
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] BuyInvoiceFilterDto filter) =>
+    ToActionResult(await _invoiceService.GetPagedAsync(filter));
 
     // GET: api/buy-invoice/5
     [HttpGet("{id:int}")]
@@ -72,4 +78,16 @@ public class BuyInvoiceController : ApiControllerBase
     [HttpPut("return/{id:long}")]
     public async Task<IActionResult> UpdateReturn(long id, [FromBody] BuyReturnRequestDto request) =>
         ToNoContentResult(await _invoiceService.UpdateReturnAsync(id, request));
+
+    // GET: api/buy-invoice/5/export 
+    [HttpGet("{id:long}/export")]
+    public async Task<IActionResult> Export(long id)
+    {
+        var file = await _invoiceService.ExportAsync(id);
+        if (file is null) return NotFound(new { message = "Invoice not found" });
+
+        return File(file.Value.Bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            file.Value.FileName);
+    }
 }

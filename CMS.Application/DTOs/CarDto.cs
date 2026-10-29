@@ -74,4 +74,11 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
     }
+
+    public class CarFilterDto : PagedFilterDto
+    {
+        public string? Search { get; set; }
+        public long? DriverId { get; set; }
+        public string? Expiry { get; set; }
+    }
 }

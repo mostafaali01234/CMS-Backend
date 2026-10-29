@@ -156,9 +156,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("auditor_id");
 
-                    b.Property<long?>("BuyInvoiceId")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -229,8 +226,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuditorId");
-
-                    b.HasIndex("BuyInvoiceId");
 
                     b.HasIndex("OrderId")
                         .IsUnique()
@@ -1437,6 +1432,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("data");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("date");
+
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1464,9 +1463,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("shift_id");
 
-                    b.Property<long?>("ShiftId1")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1484,8 +1480,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("ShiftId1");
 
                     b.ToTable("expense");
                 });
@@ -1799,9 +1793,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("shift_id");
 
-                    b.Property<long?>("ShiftId1")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("TransactionAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
@@ -1842,8 +1833,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("ShiftId1");
 
                     b.ToTable("money_safe_transaction");
                 });
@@ -2720,9 +2709,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("shift_id");
 
-                    b.Property<long?>("ShiftId1")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
@@ -2749,8 +2735,6 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("OriginalInvoiceId");
 
                     b.HasIndex("ShiftId");
-
-                    b.HasIndex("ShiftId1");
 
                     b.ToTable("sale_invoice");
                 });
@@ -3607,16 +3591,12 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CMS.Domain.Models.BuyInvoice", null)
-                        .WithMany("Returns")
-                        .HasForeignKey("BuyInvoiceId");
-
                     b.HasOne("CMS.Domain.Models.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId");
 
                     b.HasOne("CMS.Domain.Models.BuyInvoice", "OriginalInvoice")
-                        .WithMany()
+                        .WithMany("Returns")
                         .HasForeignKey("OriginalInvoiceId");
 
                     b.HasOne("CMS.Domain.Models.Supplier", "Supplier")
@@ -3975,14 +3955,10 @@ namespace CMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("CMS.Domain.Models.Shift", null)
+                    b.HasOne("CMS.Domain.Models.Shift", "Shift")
                         .WithMany("Expenses")
                         .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CMS.Domain.Models.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId1");
 
                     b.Navigation("Auditor");
 
@@ -4051,14 +4027,10 @@ namespace CMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("CMS.Domain.Models.Shift", null)
+                    b.HasOne("CMS.Domain.Models.Shift", "Shift")
                         .WithMany("Transactions")
                         .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CMS.Domain.Models.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId1");
 
                     b.Navigation("Auditor");
 
@@ -4303,14 +4275,10 @@ namespace CMS.Infrastructure.Migrations
                         .WithMany("Returns")
                         .HasForeignKey("OriginalInvoiceId");
 
-                    b.HasOne("CMS.Domain.Models.Shift", null)
+                    b.HasOne("CMS.Domain.Models.Shift", "Shift")
                         .WithMany("Invoices")
                         .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CMS.Domain.Models.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId1");
 
                     b.Navigation("Auditor");
 

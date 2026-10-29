@@ -1,11 +1,12 @@
 ﻿// Services/MoneySafeTransactionService.cs
-using CMS.Application.Interfaces.Configuration;
-using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Enums;
+using CMS.Domain.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace CMS.Application.Services;
@@ -93,11 +94,10 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
             return "TransactionType is not a valid value";
 
         // --- Amounts ---
-        if (dto.TransactionAmount <= 0)
-            return "TransactionAmount must be greater than zero";
-
-        if (dto.TransactionAmountCurrency < 0)
-            return "TransactionAmountCurrency cannot be negative";
+        if (dto.TransactionAmount < 0) return "TransactionAmount cannot be negative";
+        if (dto.TransactionAmountCurrency < 0) return "TransactionAmountCurrency cannot be negative";
+        if (dto.TransactionAmount == 0 && dto.TransactionAmountCurrency == 0)
+            return "TransactionAmount or TransactionAmountCurrency must be greater than zero";
 
         // --- Notes (optional, length only) ---
         if (!string.IsNullOrWhiteSpace(dto.TransactionNotes) && dto.TransactionNotes.Length > NotesMaxLength)
@@ -141,6 +141,8 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
         if (!inSafe.Active)
             return $"In money safe '{inSafe.Name}' is not active";
 
+        if (dto.TransactionAmountCurrency > 0 && (!outSafe.IsMultiCurrency || !inSafe.IsMultiCurrency))
+            return "Both money safes must accept currency amounts";
         // --- Out and In must differ ---
         if (dto.OutMoneySafeId == dto.InMoneySafeId)
             return "OutMoneySafeId and InMoneySafeId cannot be the same safe";
@@ -170,6 +172,54 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
         return ServiceResult<List<MoneySafeTransactionDto>>.Ok(items.Select(ToDto).ToList());
     }
 
+    private static IQueryable<MoneySafeTransaction> ApplyFilters(IQueryable<MoneySafeTransaction> q, MoneySafeTransactionFilterDto f)
+    {
+        if (f.DateFrom.HasValue) { var from = f.DateFrom.Value.Date; q = q.Where(t => t.TransactionDate >= from); }
+        if (f.DateTo.HasValue) { var to = f.DateTo.Value.Date.AddDays(1); q = q.Where(t => t.TransactionDate < to); }
+
+        if (f.MoneySafeId.HasValue)
+            q = q.Where(t => t.OutMoneySafeId == f.MoneySafeId.Value || t.InMoneySafeId == f.MoneySafeId.Value);
+        if (f.TransactionType.HasValue) q = q.Where(t => t.TransactionType == f.TransactionType.Value);
+        if (f.ProjectId.HasValue) q = q.Where(t => t.ProjectId == f.ProjectId.Value);
+
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(t => t.TransactionNotes.Contains(s)
+                          || t.OutMoneySafe!.Name.Contains(s) || t.InMoneySafe!.Name.Contains(s)
+                          || t.Project!.Name.Contains(s));
+        }
+        return q;
+    }
+
+    public async Task<ServiceResult<PagedResult<MoneySafeTransactionDto, MoneySafeTransactionSummaryDto>>> GetPagedAsync(
+        MoneySafeTransactionFilterDto f)
+    {
+        var q = ApplyFilters(_dbContext.MoneySafeTransaction.Where(t => !t.IsDeleted), f);
+
+        var summary = new MoneySafeTransactionSummaryDto
+        {
+            Amount = await q.SumAsync(t => t.TransactionAmount),
+            AmountCurrency = await q.SumAsync(t => t.TransactionAmountCurrency)
+        };
+
+        var page = await q.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id)
+            .Select(t => t.Id).ToPagedAsync(f);
+
+        var loaded = await WithIncludes(_dbContext.MoneySafeTransaction.Where(t => page.Items.Contains(t.Id)))
+            .AsNoTracking().ToListAsync();
+
+        return ServiceResult<PagedResult<MoneySafeTransactionDto, MoneySafeTransactionSummaryDto>>.Ok(
+            new PagedResult<MoneySafeTransactionDto, MoneySafeTransactionSummaryDto>
+            {
+                Items = page.Items.Select(id => loaded.First(t => t.Id == id)).Select(ToDto).ToList(),
+                Total = page.Total,
+                Page = page.Page,
+                PageSize = page.PageSize,
+                Summary = summary
+            });
+    }
+
     public async Task<ServiceResult<MoneySafeTransactionDto?>> GetByIdAsync(long id)
     {
         if (id <= 0)
@@ -195,6 +245,7 @@ public class MoneySafeTransactionService : IMoneySafeTransactionService
         }
 
         var entity = ToEntity(dto);
+        entity.Id = 0;
 
         _dbContext.MoneySafeTransaction.Add(entity);
         await _dbContext.SaveChangesAsync();

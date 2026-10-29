@@ -63,4 +63,20 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
     }
+
+    public class MoneySafeTransactionFilterDto : PagedFilterDto
+    {
+        public DateTime? DateFrom { get; set; }
+        public DateTime? DateTo { get; set; }
+        public long? MoneySafeId { get; set; }                   
+        public MoneySafeTransactionType? TransactionType { get; set; }
+        public long? ProjectId { get; set; }
+        public string? Search { get; set; }
+    }
+
+    public class MoneySafeTransactionSummaryDto
+    {
+        [JsonPropertyName("amount")] public decimal Amount { get; set; }
+        [JsonPropertyName("amount_currency")] public decimal AmountCurrency { get; set; }
+    }
 }

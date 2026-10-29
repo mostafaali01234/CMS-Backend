@@ -309,7 +309,7 @@ public class OrderService : IOrderService
         return ServiceResult<List<OrderDto>>.Ok(orders.Select(ToDto).ToList());
     }
 
-    public async Task<ServiceResult<PagedResult<OrderDto>>> GetPagedAsync(OrderQueryDto q)
+    public async Task<ServiceResult<OrdersPagedResult<OrderDto>>> GetPagedAsync(OrderQueryDto q)
     {
         var page = Math.Max(q.Page, 1);
         var pageSize = Math.Clamp(q.PageSize, 1, 100);
@@ -378,7 +378,7 @@ public class OrderService : IOrderService
             .AsNoTracking()
             .ToListAsync();
 
-        return ServiceResult<PagedResult<OrderDto>>.Ok(new PagedResult<OrderDto>
+        return ServiceResult<OrdersPagedResult<OrderDto>>.Ok(new OrdersPagedResult<OrderDto>
         {
             Items = orders.Select(ToDto).ToList(),
             TotalCount = total,

@@ -1,12 +1,13 @@
 ﻿// Services/CarService.cs
-using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
-using Microsoft.EntityFrameworkCore;
-using System.Data;
 using CMS.Application.Interfaces.Configuration;
+using CMS.Domain.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Data;
 
 namespace CMS.Application.Services;
 
@@ -23,6 +24,8 @@ public class CarService : ICarService
     private const int OwnerNameMaxLength = 200;
     private const int MotorNumberMaxLength = 100;
     private const int ChassisNumberMaxLength = 100;
+    private const int ExpiryWarningDays = 30;
+
 
     public CarService(
         IAppDbContext dbContext,
@@ -244,6 +247,49 @@ public class CarService : ICarService
 
         var dtos = cars.Select(ToDto).ToList();
         return ServiceResult<List<CarDto>>.Ok(dtos);
+    }
+
+    private static IQueryable<Car> ApplyFilters(IQueryable<Car> q, CarFilterDto f)
+    {
+        if (f.DriverId.HasValue) q = q.Where(c => c.DriverId == f.DriverId.Value);
+
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(c => c.Name.Contains(s) || c.PlatNumber.Contains(s) || c.Model.Contains(s)
+                          || c.OwnerName.Contains(s) || c.MotorNumber.Contains(s) || c.ChassisNumber.Contains(s)
+                          || c.Driver!.Name.Contains(s));
+        }
+
+        var today = DateTime.Today;
+        var soon = today.AddDays(ExpiryWarningDays);
+
+        return f.Expiry switch
+        {
+            "license_expired" => q.Where(c => c.LicenseEndDate < today),
+            "license_soon" => q.Where(c => c.LicenseEndDate >= today && c.LicenseEndDate <= soon),
+            "insurance_expired" => q.Where(c => c.InsuranceEndDate < today),
+            "insurance_soon" => q.Where(c => c.InsuranceEndDate >= today && c.InsuranceEndDate <= soon),
+            "any" => q.Where(c => c.LicenseEndDate <= soon || c.InsuranceEndDate <= soon),
+            _ => q
+        };
+    }
+
+    public async Task<ServiceResult<PagedResult<CarDto>>> GetPagedAsync(CarFilterDto f)
+    {
+        var page = await ApplyFilters(_dbContext.Car.Where(c => !c.IsDeleted), f)
+            .Include(c => c.Driver)
+            .AsNoTracking()
+            .OrderBy(c => c.Name).ThenBy(c => c.Id)
+            .ToPagedAsync(f);
+
+        return ServiceResult<PagedResult<CarDto>>.Ok(new PagedResult<CarDto>
+        {
+            Items = page.Items.Select(ToDto).ToList(),
+            Total = page.Total,
+            Page = page.Page,
+            PageSize = page.PageSize
+        });
     }
 
     public async Task<ServiceResult<CarDto?>> GetByIdAsync(long id)

@@ -52,7 +52,7 @@ public class ExpenseTypeService : IExpenseTypeService
         if (type.CategoryId <= 0)
             return "CategoryId is required";
 
-        var stateExists = await _dbContext.CountryState
+        var stateExists = await _dbContext.ExpenseCategory
             .AnyAsync(e => e.Id == type.CategoryId);
 
         if (!stateExists)
@@ -63,7 +63,7 @@ public class ExpenseTypeService : IExpenseTypeService
 
     public async Task<ServiceResult<List<ExpenseType>>> GetAllAsync()
     {
-        var types = await _dbContext.ExpenseType.AsNoTracking().ToListAsync();
+        var types = await _dbContext.ExpenseType.Include(z => z.Category).AsNoTracking().ToListAsync();
         return ServiceResult<List<ExpenseType>>.Ok(types);
     }
 

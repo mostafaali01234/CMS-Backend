@@ -17,6 +17,8 @@ namespace CMS.Domain.Models
 
         [ForeignKey(nameof(ExpenseTypeId))]
         public virtual ExpenseType? ExpenseType { get; set; }
+        [Column(name: "date")]
+        public DateTime Date { get; set; }
 
         [Column(name: "amount")]
         public decimal Amount { get; set; } = 0;

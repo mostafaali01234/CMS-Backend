@@ -1,9 +1,11 @@
 ﻿// Services/ExpenseService.cs
+using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.DTOs;
 using CMS.Domain.Models;
-using CMS.Application.Interfaces.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -46,10 +48,13 @@ public class ExpenseService : IExpenseService
             Id = e.Id,
             ExpenseTypeId = e.ExpenseTypeId,
             ExpenseTypeName = e.ExpenseType?.Name ?? "",
+            ExpenseCategoryId = e.ExpenseType?.CategoryId,
+            ExpenseCategoryName = e.ExpenseType?.Category?.Name ?? "",
             Amount = e.Amount,
             AmountCurrency = e.AmountCurrency,
             Notes = e.Notes,
             Data = data,
+            Date = e.Date,
             MoneySafeId = e.MoneySafeId,
             MoneySafeName = e.MoneySafe?.Name ?? "",
             AuditorId = e.AuditorId,
@@ -67,7 +72,7 @@ public class ExpenseService : IExpenseService
     private IQueryable<Expense> WithIncludes(IQueryable<Expense> query)
     {
         return query
-            .Include(e => e.ExpenseType)
+            .Include(e => e.ExpenseType).ThenInclude(e => e!.Category)
             .Include(e => e.MoneySafe)
             .Include(e => e.Auditor)
             .Include(e => e.Project);
@@ -78,6 +83,9 @@ public class ExpenseService : IExpenseService
     {
         if (dto is null)
             return "Expense payload is required";
+
+        if (dto.Date == default)
+            return "Date is required";
 
         // --- ExpenseType (required FK) ---
         if (dto.ExpenseTypeId <= 0)
@@ -90,11 +98,10 @@ public class ExpenseService : IExpenseService
             return $"Expense type with Id {dto.ExpenseTypeId} was not found";
 
         // --- Amount ---
-        if (dto.Amount <= 0)
-            return "Amount must be greater than zero";
+        if (dto.Amount < 0) return "Amount cannot be negative";
+        if (dto.AmountCurrency < 0) return "AmountCurrency cannot be negative";
+        if (dto.Amount == 0 && dto.AmountCurrency == 0) return "Amount or AmountCurrency must be greater than zero";
 
-        if (dto.AmountCurrency < 0)
-            return "AmountCurrency cannot be negative";
 
         // --- Notes (optional, length only) ---
         if (!string.IsNullOrWhiteSpace(dto.Notes) && dto.Notes.Length > NotesMaxLength)
@@ -113,6 +120,9 @@ public class ExpenseService : IExpenseService
 
         if (!safe.Active)
             return $"Money safe '{safe.Name}' is not active";
+
+        if (dto.AmountCurrency > 0 && !safe.IsMultiCurrency)
+            return $"Money safe '{safe.Name}' does not accept currency amounts";
 
         // --- Auditor (required FK) ---
         if (dto.AuditorId <= 0)
@@ -189,6 +199,49 @@ public class ExpenseService : IExpenseService
         return ServiceResult<List<ExpenseDto>>.Ok(items.Select(ToDto).ToList());
     }
 
+    private IQueryable<Expense> ApplyFilters(IQueryable<Expense> q, ExpenseFilterDto f)
+    {
+        if (f.DateFrom.HasValue) { var from = f.DateFrom.Value.Date; q = q.Where(e => e.Date >= from); }
+        if (f.DateTo.HasValue) { var to = f.DateTo.Value.Date.AddDays(1); q = q.Where(e => e.Date < to); }
+
+        if (f.ExpenseTypeId.HasValue) q = q.Where(e => e.ExpenseTypeId == f.ExpenseTypeId.Value);
+        if (f.CategoryId.HasValue) q = q.Where(e => e.ExpenseType!.CategoryId == f.CategoryId.Value);  
+
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(e => e.Notes.Contains(s) || e.ExpenseType!.Name.Contains(s));
+        }
+        return q;
+    }
+
+    public async Task<ServiceResult<PagedResult<ExpenseDto, ExpenseListSummaryDto>>> GetPagedAsync(ExpenseFilterDto f)
+    {
+        var q = ApplyFilters(_dbContext.Expense.Where(e => !e.IsDeleted), f);
+
+        var summary = new ExpenseListSummaryDto
+        {
+            Amount = await q.SumAsync(e => e.Amount),
+            AmountCurrency = await q.SumAsync(e => e.AmountCurrency)
+        };
+
+        var page = await q.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id)
+            .Select(e => e.Id).ToPagedAsync(f);
+
+        var loaded = await WithIncludes(_dbContext.Expense.Where(e => page.Items.Contains(e.Id)))
+            .AsNoTracking().ToListAsync();
+
+        return ServiceResult<PagedResult<ExpenseDto, ExpenseListSummaryDto>>.Ok(
+            new PagedResult<ExpenseDto, ExpenseListSummaryDto>
+            {
+                Items = page.Items.Select(id => loaded.First(e => e.Id == id)).Select(ToDto).ToList(),
+                Total = page.Total,
+                Page = page.Page,
+                PageSize = page.PageSize,
+                Summary = summary
+            });
+    }
+
     public async Task<ServiceResult<ExpenseDto?>> GetByIdAsync(long id)
     {
         if (id <= 0)
@@ -219,10 +272,12 @@ public class ExpenseService : IExpenseService
             Amount = dto.Amount,
             AmountCurrency = dto.AmountCurrency,
             Notes = dto.Notes,
+            Date = dto.Date,
             Data = dto.Data is not null ? JsonSerializer.Serialize(dto.Data) : string.Empty,
             MoneySafeId = dto.MoneySafeId,
             AuditorId = dto.AuditorId,
-            ProjectId = dto.ProjectId
+            ProjectId = dto.ProjectId,
+            ShiftId = dto.ShiftId
         };
 
         _dbContext.Expense.Add(entity);
@@ -259,6 +314,7 @@ public class ExpenseService : IExpenseService
         existing.ExpenseTypeId = dto.ExpenseTypeId;
         existing.Amount = dto.Amount;
         existing.AmountCurrency = dto.AmountCurrency;
+        existing.Date = dto.Date;
         existing.Notes = dto.Notes;
         existing.Data = dto.Data is not null ? JsonSerializer.Serialize(dto.Data) : string.Empty;
         existing.MoneySafeId = dto.MoneySafeId;

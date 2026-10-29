@@ -27,6 +27,11 @@ public class MoneySafeTransactionController : ApiControllerBase
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _msTransactionService.GetAllAsync());
 
+    // GET: api/MoneySafeTransaction/paged?page=1&pageSize=20&dateFrom=2026-10-27&dateTo=2026-10-27
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] MoneySafeTransactionFilterDto filter) =>
+        ToActionResult(await _msTransactionService.GetPagedAsync(filter));
+
     // GET: api/MoneySafeTransaction/5
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id) =>

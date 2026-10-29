@@ -241,7 +241,6 @@ namespace CMS.Infrastructure.Persistence
                 e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2); 
                 e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
-                e.HasOne(x => x.OriginalInvoice).WithMany().HasForeignKey(x => x.OriginalInvoiceId).OnDelete(DeleteBehavior.ClientSetNull);
             });
             
             modelBuilder.Entity<SaleInvoice>(e =>
@@ -359,9 +358,9 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.CountryState).WithMany().HasForeignKey(x => x.CountryStateId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Car).WithMany().HasForeignKey(x => x.CarId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
-                e.HasMany(x => x.Invoices).WithOne().HasForeignKey("ShiftId").OnDelete(DeleteBehavior.Restrict);
-                e.HasMany(x => x.Expenses).WithOne().HasForeignKey("ShiftId").OnDelete(DeleteBehavior.Restrict);
-                e.HasMany(x => x.Transactions).WithOne().HasForeignKey("ShiftId").OnDelete(DeleteBehavior.Restrict);
+                e.HasMany(x => x.Invoices).WithOne(x => x.Shift).HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
+                e.HasMany(x => x.Expenses).WithOne(x => x.Shift).HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
+                e.HasMany(x => x.Transactions).WithOne(x => x.Shift).HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<ShiftTech>(e =>
