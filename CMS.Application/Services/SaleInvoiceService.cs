@@ -16,6 +16,7 @@ namespace CMS.Application.Services;
 public class SaleInvoiceService : ISaleInvoiceService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IStockService _stock;
     private readonly ILogger<SaleInvoiceService> _logger;
 
     private const int NotesMaxLength = 2000;
@@ -23,9 +24,11 @@ public class SaleInvoiceService : ISaleInvoiceService
 
     public SaleInvoiceService(
         IAppDbContext dbContext,
+        IStockService stock,
         ILogger<SaleInvoiceService> logger)
     {
         _dbContext = dbContext;
+        _stock = stock;
         _logger = logger;
     }
 
@@ -319,17 +322,17 @@ public class SaleInvoiceService : ISaleInvoiceService
     }
 
     private static readonly Expression<Func<SaleInvoice, bool>> IsUnpaid = i =>
-    i.Type == InvoiceType.Sale &&
-    (i.NetTotal - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotal)
+        i.Type == InvoiceType.Sale &&
+        (i.NetTotal - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotal)
                 - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.Amount) > 0
-  || i.NetTotalCurrency - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
+        || i.NetTotalCurrency - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
                         - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.AmountCurrency) > 0);
 
     private static readonly Expression<Func<SaleInvoice, bool>> IsPaid = i =>
         i.Type == InvoiceType.Sale &&
         (i.NetTotal - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotal)
                     - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.Amount) <= 0
-      && i.NetTotalCurrency - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
+        && i.NetTotalCurrency - i.Returns.Where(r => !r.IsDeleted).Sum(r => r.NetTotalCurrency)
                             - i.Payments.Where(p => !p.IsDeleted && p.Type != PaymentType.Refund_Payment).Sum(p => p.AmountCurrency) <= 0);
 
     private IQueryable<SaleInvoice> ApplyFilters(IQueryable<SaleInvoice> q, SaleInvoiceFilterDto f)
@@ -472,6 +475,11 @@ public class SaleInvoiceService : ISaleInvoiceService
         if (paymentError is not null)
             return ServiceResult<SaleInvoiceDto>.Failed(paymentError);
 
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(), Array.Empty<StockDelta>(),
+            StockDeltas.Sale(InvoiceType.Sale, dto.Items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
+        if (stockError is not null) return ServiceResult<SaleInvoiceDto>.Failed(stockError);
+
+
         var invoice = new SaleInvoice
         {
             Type = InvoiceType.Sale,
@@ -586,6 +594,12 @@ public class SaleInvoiceService : ISaleInvoiceService
                 return ServiceResult<bool>.Failed("Net total in currency cannot be less than the currency already paid");
         }
 
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(SaleInvoiceIds: new[] { id }),
+            StockDeltas.Sale(InvoiceType.Sale, existing.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))),
+            StockDeltas.Sale(InvoiceType.Sale, dto.Items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
+
+
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
@@ -658,6 +672,15 @@ public class SaleInvoiceService : ISaleInvoiceService
             ? await _dbContext.SaleInvoice.Include(r => r.Items).Include(r => r.Payments)
                 .Where(r => !r.IsDeleted && r.OriginalInvoiceId == id).ToListAsync()
             : new List<SaleInvoice>();
+
+        var docs = new List<SaleInvoice> { invoice };
+        docs.AddRange(returns);
+        var stockError = await _stock.CheckChangeAsync(
+            new StockExclusion(SaleInvoiceIds: docs.Select(d => d.Id).ToArray()),
+            docs.SelectMany(d => StockDeltas.Sale(d.Type,
+                d.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity)))),
+            Array.Empty<StockDelta>());
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
 
         var linked = payments.Count > 0 || returns.Count > 0;
         if (!isSuperAdmin && linked)
@@ -919,6 +942,12 @@ public class SaleInvoiceService : ISaleInvoiceService
 
         var (error, original, items) = await PrepareReturnAsync(req!, id);
         if (error is not null) return ServiceResult<bool>.Failed(error);
+
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(SaleInvoiceIds: new[] { id }),
+            StockDeltas.Sale(InvoiceType.Sale_Return, existing.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))),
+            StockDeltas.Sale(InvoiceType.Sale_Return, items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
+
 
         existing.Date = req!.Date;
         existing.Notes = req.Notes ?? "";

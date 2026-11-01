@@ -6,6 +6,7 @@ namespace CMS.Application.Interfaces;
 public interface IStoreTransactionService
 {
     Task<ServiceResult<List<StoreTransactionDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResult<StoreTransactionDto>>> GetPagedAsync(StoreTransactionFilterDto filter);
     Task<ServiceResult<StoreTransactionDto?>> GetByIdAsync(long id);
     Task<ServiceResult<StoreTransactionDto>> CreateAsync(StoreTransactionDto storeTransaction);
     Task<ServiceResult<bool>> UpdateAsync(long id, StoreTransactionDto storeTransaction);

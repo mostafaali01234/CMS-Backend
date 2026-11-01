@@ -27,6 +27,11 @@ public class StoreTransactionController : ApiControllerBase
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _storeTransactionService.GetAllAsync());
 
+    // GET: api/storeTransaction/paged?page=1&pageSize=20&dateFrom=2026-10-27&dateTo=2026-10-27
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] StoreTransactionFilterDto filter) =>
+        ToActionResult(await _storeTransactionService.GetPagedAsync(filter));
+
     // GET: api/storeTransaction/5
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id) =>

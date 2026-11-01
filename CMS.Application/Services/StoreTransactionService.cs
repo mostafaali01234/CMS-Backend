@@ -1,27 +1,31 @@
 ﻿// Services/StoreTransactionService.cs
-using CMS.Application.Interfaces.Configuration;
-using CMS.Domain.Models;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
+using CMS.Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 using Microsoft.Extensions.Logging;
+using System.Data;
 
 namespace CMS.Application.Services;
 
 public class StoreTransactionService : IStoreTransactionService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IStockService _stock;
     private readonly ILogger<StoreTransactionService> _logger;
 
     private const int NotesMaxLength = 2000;
 
     public StoreTransactionService(
         IAppDbContext dbContext,
+        IStockService stock,
         ILogger<StoreTransactionService> logger)
     {
         _dbContext = dbContext;
+        _stock = stock;
         _logger = logger;
     }
 
@@ -142,6 +146,47 @@ public class StoreTransactionService : IStoreTransactionService
         return ServiceResult<List<StoreTransactionDto>>.Ok(dtos);
     }
 
+    private static IQueryable<StoreTransaction> ApplyFilters(IQueryable<StoreTransaction> q, StoreTransactionFilterDto f)
+    {
+        if (f.DateFrom.HasValue) { var from = f.DateFrom.Value.Date; q = q.Where(t => t.TransactionDate >= from); }
+        if (f.DateTo.HasValue) { var to = f.DateTo.Value.Date.AddDays(1); q = q.Where(t => t.TransactionDate < to); }
+
+        if (f.OutStoreId.HasValue) q = q.Where(t => t.OutStoreId == f.OutStoreId.Value);
+        if (f.InStoreId.HasValue) q = q.Where(t => t.InStoreId == f.InStoreId.Value);
+        if (f.ProductId.HasValue)
+            q = q.Where(t => t.Items.Any(i => !i.IsDeleted && i.ProductId == f.ProductId.Value));
+
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(t => t.Notes.Contains(s)
+                          || t.OutStore!.Name.Contains(s) || t.InStore!.Name.Contains(s)
+                          || t.Items.Any(i => !i.IsDeleted && i.Product!.Name.Contains(s)));
+        }
+        return q;
+    }
+
+    public async Task<ServiceResult<PagedResult<StoreTransactionDto>>> GetPagedAsync(StoreTransactionFilterDto f)
+    {
+        var page = await ApplyFilters(_dbContext.StoreTransaction.Where(t => !t.IsDeleted), f)
+            .OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id)
+            .Select(t => t.Id).ToPagedAsync(f);
+
+        var loaded = await _dbContext.StoreTransaction
+            .Where(t => page.Items.Contains(t.Id))
+            .Include(t => t.Auditor).Include(t => t.OutStore).Include(t => t.InStore)
+            .Include(t => t.Items!.Where(i => !i.IsDeleted)).ThenInclude(i => i.Product)
+            .AsNoTracking().ToListAsync();
+
+        return ServiceResult<PagedResult<StoreTransactionDto>>.Ok(new PagedResult<StoreTransactionDto>
+        {
+            Items = page.Items.Select(id => loaded.First(t => t.Id == id)).Select(ToDto).ToList(),
+            Total = page.Total,
+            Page = page.Page,
+            PageSize = page.PageSize
+        });
+    }
+
     public async Task<ServiceResult<StoreTransactionDto?>> GetByIdAsync(long id)
     {
         if (id <= 0)
@@ -171,6 +216,12 @@ public class StoreTransactionService : IStoreTransactionService
             _logger.LogWarning("Validation failed while creating store transaction: {Error}", validationError);
             return ServiceResult<StoreTransactionDto>.Failed(validationError);
         }
+
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(),
+            Array.Empty<StockDelta>(),
+            StockDeltas.Transfer(dto.OutStoreId, dto.InStoreId, dto.TransactionItems.Select(i => (i.ItemId, i.Quantity))));
+        if (stockError is not null) return ServiceResult<StoreTransactionDto>.Failed(stockError);
+
 
         var transaction = new StoreTransaction
         {
@@ -237,6 +288,12 @@ public class StoreTransactionService : IStoreTransactionService
             return ServiceResult<bool>.Failed(validationError);
         }
 
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(StoreTransactionId: id),
+            StockDeltas.Transfer(existing.OutStoreId, existing.InStoreId,
+                existing.Items.Where(i => !i.IsDeleted).Select(i => (i.ProductId, i.Quantity))),
+            StockDeltas.Transfer(dto.OutStoreId, dto.InStoreId, dto.TransactionItems.Select(i => (i.ItemId, i.Quantity))));
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
+
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
@@ -290,6 +347,12 @@ public class StoreTransactionService : IStoreTransactionService
 
         if (transaction is null)
             return ServiceResult<bool>.NotFound("Transaction not found");
+
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(StoreTransactionId: id),
+            StockDeltas.Transfer(transaction.OutStoreId, transaction.InStoreId,
+                transaction.Items.Where(i => !i.IsDeleted).Select(i => (i.ProductId, i.Quantity))),
+            Array.Empty<StockDelta>());
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
 
         var now = DateTime.UtcNow;
 

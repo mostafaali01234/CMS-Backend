@@ -15,4 +15,17 @@ public static class PagingExtensions
         var items = await query.Skip((f.Page - 1) * f.PageSize).Take(f.PageSize).ToListAsync();
         return new PagedResult<T> { Items = items, Total = total, Page = f.Page, PageSize = f.PageSize };
     }
+    public static PagedResult<T> PageOf<T>(this IReadOnlyList<T> all, PagedFilterDto f)
+    {
+        f.Normalize();
+        var pages = Math.Max(1, (int)Math.Ceiling(all.Count / (double)f.PageSize));
+        if (f.Page > pages) f.Page = pages;
+        return new PagedResult<T>
+        {
+            Items = all.Skip((f.Page - 1) * f.PageSize).Take(f.PageSize).ToList(),
+            Total = all.Count,
+            Page = f.Page,
+            PageSize = f.PageSize
+        };
+    }
 }

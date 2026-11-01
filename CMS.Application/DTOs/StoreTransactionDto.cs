@@ -32,7 +32,7 @@ namespace CMS.Application.DTOs
         public string InStoreName { get; set; } = string.Empty;
 
         [JsonPropertyName("transaction_items")]
-        public List<TransactionItemsDto> TransactionItems { get; set; }
+        public List<TransactionItemsDto> TransactionItems { get; set; } = new();
 
 
         [JsonPropertyName("created_at_utc")]
@@ -53,9 +53,19 @@ namespace CMS.Application.DTOs
         public long ItemId { get; set; }
 
         [JsonPropertyName("item_name")]
-        public string ItemName { get; set; }
+        public string ItemName { get; set; } = string.Empty;
 
         [JsonPropertyName("quantity")]
         public decimal Quantity { get; set; }
+    }
+
+    public class StoreTransactionFilterDto : PagedFilterDto
+    {
+        public DateTime? DateFrom { get; set; }
+        public DateTime? DateTo { get; set; }
+        public long? OutStoreId { get; set; }
+        public long? InStoreId { get; set; }
+        public long? ProductId { get; set; } 
+        public string? Search { get; set; }
     }
 }

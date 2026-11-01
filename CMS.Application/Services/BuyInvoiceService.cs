@@ -9,6 +9,7 @@ using CMS.Domain.Enums;
 using CMS.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace CMS.Application.Services;
@@ -16,6 +17,7 @@ namespace CMS.Application.Services;
 public class BuyInvoiceService : IBuyInvoiceService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IStockService _stock;
     private readonly ISupplierPaymentService _paymentService;
     private readonly ILogger<BuyInvoiceService> _logger;
 
@@ -24,12 +26,14 @@ public class BuyInvoiceService : IBuyInvoiceService
 
     public BuyInvoiceService(
         IAppDbContext dbContext,
+        IStockService stock,
         ISupplierPaymentService paymentService,
         ILogger<BuyInvoiceService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
         _paymentService = paymentService;
+        _stock = stock;
     }
 
     private BuyInvoiceDto ToDto(BuyInvoice invoice)
@@ -592,6 +596,12 @@ public class BuyInvoiceService : IBuyInvoiceService
 
         RecalculateTotals(dto);
 
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(BuyInvoiceIds: new[] { id }),
+            StockDeltas.Buy(InvoiceType.Buy, existing.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))),
+            StockDeltas.Buy(InvoiceType.Buy, dto.Items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
+
+
         if (payments.Count > 0)
         {
             if (dto.NetTotal < payments.Sum(p => p.Amount))
@@ -676,6 +686,15 @@ public class BuyInvoiceService : IBuyInvoiceService
 
         if (!isSuperAdmin && (payments.Count > 0 || returns.Count > 0))
             return ServiceResult<bool>.Failed("Delete the payments and returns of this invoice first");
+
+        var docs = new List<BuyInvoice> { invoice };
+        docs.AddRange(returns);
+        var stockError = await _stock.CheckChangeAsync(
+            new StockExclusion(BuyInvoiceIds: docs.Select(d => d.Id).ToArray()),
+            docs.SelectMany(d => StockDeltas.Buy(d.Type,
+                d.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity)))),
+            Array.Empty<StockDelta>());
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
 
         var now = DateTime.UtcNow;
 
@@ -882,6 +901,11 @@ public class BuyInvoiceService : IBuyInvoiceService
             return ServiceResult<BuyInvoiceDto>.Failed(error);
         }
 
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(), Array.Empty<StockDelta>(),
+            StockDeltas.Buy(InvoiceType.Buy_Return, items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
+        if (stockError is not null) return ServiceResult<BuyInvoiceDto>.Failed(stockError);
+
+
         var invoice = new BuyInvoice
         {
             //Number = req.Number,
@@ -939,6 +963,13 @@ public class BuyInvoiceService : IBuyInvoiceService
             _logger.LogWarning("Validation failed while updating buy return {InvoiceId}: {Error}", id, error);
             return ServiceResult<bool>.Failed(error);
         }
+
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(BuyInvoiceIds: new[] { id }),
+            StockDeltas.Buy(InvoiceType.Buy_Return, existing.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))),
+            StockDeltas.Buy(InvoiceType.Buy_Return, items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
+        if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
+
+
 
         //existing.Number = req!.Number;
         existing.Date = req.Date;
