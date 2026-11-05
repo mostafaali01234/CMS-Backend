@@ -33,16 +33,20 @@ public class ShiftController : ApiControllerBase
     public async Task<IActionResult> GetById(int id) =>
         ToActionResult(await _shiftService.GetByIdAsync(id));
 
-    // GET: api/shift/day?date=2023-06-01
-    [HttpGet("/day")]
-    public async Task<IActionResult> GetAllByDate(DateTime date) =>
+    // GET: api/shift/day?date=2026-11-03
+    [HttpGet("day")]
+    public async Task<IActionResult> GetAllByDate([FromQuery] DateTime date) =>
         ToActionResult(await _shiftService.GetAllByDateAsync(date));
-    
 
-    // GET: api/shift/store/5?date=2023-06-01
-    [HttpGet("/store/{id:int}")]
-    public async Task<IActionResult> GetByStoreIdAndDate(int storeId, DateTime date) =>
+    // GET: api/shift/store/5?date=2026-11-03
+    [HttpGet("store/{storeId:long}")]
+    public async Task<IActionResult> GetByStoreIdAndDate(long storeId, [FromQuery] DateTime date) =>
         ToActionResult(await _shiftService.GetByStoreIdAndDateAsync(storeId, date));
+
+    // GET: api/shift/board?storeId=5&date=2026-11-03   (the one-shift page: shift or null, plus the store's items)
+    [HttpGet("board")]
+    public async Task<IActionResult> Board([FromQuery] long storeId, [FromQuery] DateTime date) =>
+        ToActionResult(await _shiftService.GetBoardAsync(storeId, date));
 
     // POST: api/shift
     [HttpPost]
@@ -58,4 +62,27 @@ public class ShiftController : ApiControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _shiftService.DeleteAsync(id));
+
+    // POST: api/shift/5/expense | /loan | /invoice
+    [HttpPost("{id:long}/expense")]
+    public async Task<IActionResult> AddExpense(long id, [FromBody] ExpenseDto dto) => ToActionResult(await _shiftService.AddExpenseAsync(id, dto));
+
+    [HttpPost("{id:long}/loan")]
+    public async Task<IActionResult> AddLoan(long id, [FromBody] EmployeeLoanDto dto) => ToActionResult(await _shiftService.AddLoanAsync(id, dto));
+
+    [HttpPost("{id:long}/invoice")]
+    public async Task<IActionResult> AddInvoice(long id, [FromBody] SaleInvoiceDto dto) => ToActionResult(await _shiftService.AddInvoiceAsync(id, dto));
+
+    // POST: api/shift/5/custody | /settlement      DELETE: api/shift/5/transaction/9
+    [HttpPost("{id:long}/custody")]
+    public async Task<IActionResult> AddCustody(long id, [FromBody] ShiftTransferRequestDto dto) =>
+        ToActionResult(await _shiftService.AddCustodyAsync(id, dto));
+
+    [HttpPost("{id:long}/settlement")]
+    public async Task<IActionResult> AddSettlement(long id, [FromBody] ShiftTransferRequestDto dto) =>
+        ToActionResult(await _shiftService.AddSettlementAsync(id, dto));
+
+    [HttpDelete("{id:long}/transaction/{transactionId:long}")]
+    public async Task<IActionResult> DeleteTransaction(long id, long transactionId) =>
+        ToNoContentResult(await _shiftService.DeleteTransactionAsync(id, transactionId));
 }

@@ -1,5 +1,6 @@
 // CMS.Api/Controllers/StockController.cs
 using CMS.Application.DTOs;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
 using CMS_Backend.Controllers.Base;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,4 +33,22 @@ public class StockController : ApiControllerBase
     // GET: api/stock/product-moves
     [HttpGet("product-moves")]
     public async Task<IActionResult> ProductMoves([FromQuery] MovesFilterDto f) => ToActionResult(await _stock.GetProductMovesAsync(f));
+
+    private IActionResult Excel(ExportResult r) =>
+        r.Error is not null
+            ? BadRequest(new { message = r.Error })
+            : File(r.Bytes!, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", r.FileName);
+
+    // GET: api/stock/store/export?storeId=3&search=&categoryId=&includeZero=false
+    [HttpGet("store/export")]
+    public async Task<IActionResult> ExportStore([FromQuery] StockFilterDto f) => Excel(await _stock.ExportStoreStockAsync(f));
+
+    [HttpGet("matrix/export")]
+    public async Task<IActionResult> ExportMatrix([FromQuery] StockFilterDto f) => Excel(await _stock.ExportMatrixAsync(f));
+
+    [HttpGet("store-moves/export")]
+    public async Task<IActionResult> ExportStoreMoves([FromQuery] MovesFilterDto f) => Excel(await _stock.ExportStoreMovesAsync(f));
+
+    [HttpGet("product-moves/export")]
+    public async Task<IActionResult> ExportProductMoves([FromQuery] MovesFilterDto f) => Excel(await _stock.ExportProductMovesAsync(f));
 }

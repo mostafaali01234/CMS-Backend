@@ -1,10 +1,12 @@
 ﻿// Services/EmployeePayrollAdjustmentService.cs
+using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.DTOs;
 using CMS.Domain.Enums;
 using CMS.Domain.Models;
-using CMS.Application.Interfaces.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -135,6 +137,53 @@ public class EmployeePayrollAdjustmentService : IEmployeePayrollAdjustmentServic
             .ToListAsync();
 
         return ServiceResult<List<EmployeePayrollAdjustmentDto>>.Ok(items.Select(ToDto).ToList());
+    }
+
+    public async Task<ServiceResult<PagedResult<PayrollAdjustmentListItemDto, PayrollAdjustmentSummaryDto>>> GetPagedAsync(PayrollAdjustmentFilterDto f)
+    {
+        var q = _dbContext.EmployeePayrollAdjustment.AsNoTracking().Where(a => !a.IsDeleted);
+
+        if (f.EmployeeId.HasValue) q = q.Where(a => a.EmployeeId == f.EmployeeId.Value);
+        if (f.Kind.HasValue) q = q.Where(a => (int)a.Kind == f.Kind.Value);
+        if (f.Type.HasValue) q = q.Where(a => (int)a.Type == f.Type.Value);
+        if (f.DateFrom.HasValue) { var from = f.DateFrom.Value.Date; q = q.Where(a => a.OperationDate >= from); }
+        if (f.DateTo.HasValue) { var to = f.DateTo.Value.Date.AddDays(1); q = q.Where(a => a.OperationDate < to); }
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(a => a.Reason.Contains(s) || a.Employee!.Name.Contains(s));
+        }
+
+        var page = await q
+            .OrderByDescending(a => a.OperationDate).ThenByDescending(a => a.Id)
+            .Select(a => new PayrollAdjustmentListItemDto
+            {
+                Id = a.Id,
+                EmployeeId = a.EmployeeId,
+                EmployeeName = a.Employee != null ? a.Employee.Name : "",
+                OperationDate = a.OperationDate,
+                CreatedAtUtc = a.CreatedAtUtc,
+                Kind = (int)a.Kind,
+                Type = (int)a.Type,
+                Amount = a.Amount,
+                Reason = a.Reason,
+                ApprovedByName = a.ApprovedBy != null ? a.ApprovedBy.Name : "",
+                FromLoan = _dbContext.EmployeeLoanInstallment.Any(i => !i.IsDeleted && i.DeductionId == a.Id)
+            })
+            .ToPagedAsync(f);
+
+        var adds = await q.Where(a => a.Kind == PayrollAdjustmentKind.Addition).SumAsync(a => (decimal?)a.Amount) ?? 0;
+        var deds = await q.Where(a => a.Kind == PayrollAdjustmentKind.Deduction).SumAsync(a => (decimal?)a.Amount) ?? 0;
+
+        return ServiceResult<PagedResult<PayrollAdjustmentListItemDto, PayrollAdjustmentSummaryDto>>.Ok(
+            new PagedResult<PayrollAdjustmentListItemDto, PayrollAdjustmentSummaryDto>
+            {
+                Items = page.Items,
+                Total = page.Total,
+                Page = page.Page,
+                PageSize = page.PageSize,
+                Summary = new PayrollAdjustmentSummaryDto { TotalAdditions = adds, TotalDeductions = deds }
+            });
     }
 
     public async Task<ServiceResult<EmployeePayrollAdjustmentDto?>> GetByIdAsync(long id)

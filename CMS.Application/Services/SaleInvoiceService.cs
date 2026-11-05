@@ -438,7 +438,10 @@ public class SaleInvoiceService : ISaleInvoiceService
         return ServiceResult<SaleInvoiceDto?>.Ok(ToDto(invoice));
     }
 
-    public async Task<ServiceResult<SaleInvoiceDto>> CreateAsync(SaleInvoiceDto dto)
+
+    public Task<ServiceResult<SaleInvoiceDto>> CreateAsync(SaleInvoiceDto dto) =>
+    _stock.RunExclusiveAsync(() => CreateCoreAsync(dto));
+    private async Task<ServiceResult<SaleInvoiceDto>> CreateCoreAsync(SaleInvoiceDto dto)
     {
         var validationError = await ValidateAsync(dto, isUpdate: false);
         if (validationError is not null)
@@ -521,15 +524,31 @@ public class SaleInvoiceService : ISaleInvoiceService
         };
         foreach (var a in advances) invoice.Payments.Add(a);   // the FK is filled when EF saves
 
-        var strategy = _dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
+
+        invoice.Number = await NextNumberAsync();      // the stock lock transaction is already open
+        _dbContext.SaleInvoice.Add(invoice);
+
+        if (invoice.Type == InvoiceType.Sale && invoice.OrderId.HasValue)
         {
-            using var tx = await _dbContext.Database.BeginTransactionAsync();
-            invoice.Number = await NextNumberAsync();
-            _dbContext.SaleInvoice.Add(invoice);
-            await _dbContext.SaveChangesAsync();
-            await tx.CommitAsync();
-        });
+            var order = await _dbContext.Order
+                .FirstOrDefaultAsync(o => o.Id == invoice.OrderId.Value && !o.IsDeleted);
+            if (order != null)
+            {
+                order.Status = OrderStatus.تام;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        //var strategy = _dbContext.Database.CreateExecutionStrategy();
+        //await strategy.ExecuteAsync(async () =>
+        //{
+        //    using var tx = await _dbContext.Database.BeginTransactionAsync();
+        //    invoice.Number = await NextNumberAsync();
+        //    _dbContext.SaleInvoice.Add(invoice);
+        //    await _dbContext.SaveChangesAsync();
+        //    await tx.CommitAsync();
+        //});
 
         _logger.LogInformation("Sale invoice {InvoiceId} created (Number {Number}, {Advances} advance payments attached)",
             invoice.Id, invoice.Number, advances.Count);
@@ -538,7 +557,9 @@ public class SaleInvoiceService : ISaleInvoiceService
         return ServiceResult<SaleInvoiceDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, SaleInvoiceDto dto, bool isSuperAdmin = false)
+    public Task<ServiceResult<bool>> UpdateAsync(long id, SaleInvoiceDto dto, bool isSuperAdmin = false) =>
+    _stock.RunExclusiveAsync(() => UpdateCoreAsync(id, dto, isSuperAdmin));
+    private async Task<ServiceResult<bool>> UpdateCoreAsync(long id, SaleInvoiceDto dto, bool isSuperAdmin = false)
     {
         if (dto is null)
             return ServiceResult<bool>.Failed("Invoice payload is required");
@@ -600,11 +621,11 @@ public class SaleInvoiceService : ISaleInvoiceService
         if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
 
 
-        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        //var strategy = _dbContext.Database.CreateExecutionStrategy();
 
-        await strategy.ExecuteAsync(async () =>
-        {
-            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+        //await strategy.ExecuteAsync(async () =>
+        //{
+        //    using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
 
             //existing.Number = dto.Number;
             existing.Type = dto.Type;
@@ -640,20 +661,21 @@ public class SaleInvoiceService : ISaleInvoiceService
                 ProductNetTotal = i.ProductNetTotal
             }).ToList();
 
-            await _dbContext.SaleInvoiceItem.AddRangeAsync(newItems);
+        await _dbContext.SaleInvoiceItem.AddRangeAsync(newItems);
 
-            try
-            {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                _logger.LogError(ex, "Concurrency error occurred while updating sale invoice with Id {InvoiceId}", id);
-                throw;
-            }
+        //    try
+        //    {
+        //        await _dbContext.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateConcurrencyException ex)
+        //    {
+        //        _logger.LogError(ex, "Concurrency error occurred while updating sale invoice with Id {InvoiceId}", id);
+        //        throw;
+        //    }
 
-            await dbTransaction.CommitAsync();
-        });
+        //    await dbTransaction.CommitAsync();
+        //});
+        await _dbContext.SaveChangesAsync();
 
         _logger.LogInformation("Sale invoice with Id {InvoiceId} updated successfully", id);
         return ServiceResult<bool>.Ok(true);
@@ -696,6 +718,22 @@ public class SaleInvoiceService : ISaleInvoiceService
         foreach (var p in payments) { p.IsDeleted = true; p.DeletedAtUtc = now; }
         foreach (var it in invoice.Items.Where(i => !i.IsDeleted)) { it.IsDeleted = true; it.DeletedAtUtc = now; }
         invoice.IsDeleted = true; invoice.DeletedAtUtc = now;
+
+        // only when this was the order's last sale invoice, and only if the order is done
+        // (an order that was cancelled for another reason is left alone)
+        if (invoice.Type == InvoiceType.Sale && invoice.OrderId.HasValue)
+        {
+            var hasOtherSale = await _dbContext.SaleInvoice.AnyAsync(i =>
+                i.OrderId == invoice.OrderId && i.Type == InvoiceType.Sale && !i.IsDeleted && i.Id != invoice.Id);
+
+            if (!hasOtherSale)
+            {
+                var order = await _dbContext.Order
+                    .FirstOrDefaultAsync(o => o.Id == invoice.OrderId.Value && !o.IsDeleted);
+                if (order != null && order.Status == OrderStatus.تام)
+                    order.Status = OrderStatus.قيد_التنفيذ;
+            }
+        }
 
         await _dbContext.SaveChangesAsync();
         _logger.LogWarning("Sale invoice {InvoiceId} deleted with {P} payments and {R} returns", id, payments.Count, returns.Count);

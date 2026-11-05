@@ -50,6 +50,9 @@ namespace CMS.Domain.Models
         [Column(name: "status")]
         public PayrollStatus Status { get; set; }
 
+        [Column(name: "revised_at")]
+        public DateTime? RevisedAt { get; set; }
+
         [Column(name: "revised_by_id")]
         public long? RevisedById { get; set; }
         [ForeignKey(nameof(RevisedById))]

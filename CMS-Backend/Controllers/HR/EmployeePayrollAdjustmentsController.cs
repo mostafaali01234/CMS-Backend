@@ -28,6 +28,11 @@ public class EmployeePayrollAdjustmentsController : ApiControllerBase
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _epService.GetAllAsync());
 
+    // GET: api/payroll-adjustments/paged?page=1&pageSize=20&employeeId=&kind=&type=&dateFrom=&dateTo=&search=
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] PayrollAdjustmentFilterDto filter) =>
+        ToActionResult(await _epService.GetPagedAsync(filter));
+
     // GET: api/payroll-adjustments/5
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id) =>

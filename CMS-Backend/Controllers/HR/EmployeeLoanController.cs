@@ -28,6 +28,11 @@ public class EmployeeLoanController : ApiControllerBase
     public async Task<IActionResult> GetAll() =>
         ToActionResult(await _loanService.GetAllAsync());
 
+    // GET: api/employee-loans/paged?page=1&pageSize=20&employeeId=&mode=&dateFrom=&dateTo=&search=
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] EmployeeLoanFilterDto filter) =>
+        ToActionResult(await _loanService.GetPagedAsync(filter));
+
     // GET: api/employee-loans/5
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id) =>

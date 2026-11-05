@@ -7,6 +7,7 @@ namespace CMS.Application.Interfaces;
 public interface IEmployeeService
 {
     Task<ServiceResult<List<EmployeeDto>>> GetAllAsync();
+    Task<ServiceResult<PagedResult<EmployeeListItemDto>>> GetPagedAsync(EmployeeFilterDto filter);
     Task<ServiceResult<EmployeeDto?>> GetByIdAsync(long id);
     Task<ServiceResult<EmployeeDto>> CreateAsync(Employee employee);
     Task<ServiceResult<bool>> UpdateAsync(long id, Employee employee);

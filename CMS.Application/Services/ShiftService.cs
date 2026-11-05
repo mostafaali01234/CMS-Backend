@@ -14,20 +14,37 @@ namespace CMS_Backend.Services;
 public class ShiftService : IShiftService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IStockService _stock;
+    private readonly IExpenseService _expenses;
+    private readonly IEmployeeLoanService _loans;
+    private readonly ISaleInvoiceService _invoices;
+    private readonly IMoneySafeTransactionService _transactions;
     private readonly ILogger<ShiftService> _logger;
 
     private const int NotesMaxLength = 2000;
 
     public ShiftService(
         IAppDbContext dbContext,
+        IStockService stock, 
+        IExpenseService _expenses, 
+        IEmployeeLoanService _loans, 
+        ISaleInvoiceService _invoices,
+        IMoneySafeTransactionService _transactions,
         ILogger<ShiftService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _stock = stock;
+        this._expenses = _expenses;
+        this._loans = _loans;
+        this._invoices = _invoices;
+        this._transactions = _transactions;
     }
 
-    private ShiftDto ToDto(Shift shift)
+    private ShiftDto ToDto(Shift shift, long safeId = 0)
     {
+        var live = shift.Transactions?.Where(t => !t.IsDeleted).ToList() ?? new List<MoneySafeTransaction>();
+
         return new ShiftDto
         {
             Id = shift.Id,
@@ -51,38 +68,40 @@ public class ShiftService : IShiftService
                 TechName = t.Tech?.Name ?? "",
                 TechType = t.TechType
             }).ToList() ?? new List<ShiftTechDto>(),
-            Invoices = shift.Invoices?.Where(i => !i.IsDeleted).Select(i => new SaleInvoiceDto
+            Invoices = shift.Invoices?.Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale).Select(i => new SaleInvoiceDto
             {
                 Id = i.Id,
+                Number = i.Number,
+                Date = i.Date,
                 OrderId = i.OrderId,
                 CustomerName = i.Customer?.Name ?? "",
                 NetTotal = i.NetTotal,
                 OrderNetTotal = i.Order?.NetTotal ?? 0,
                 Items = i.Items?.Where(it => !it.IsDeleted).Select(it => new SaleInvoiceItemDto
-                {
-                    Id = it.Id,
-                    ProductId = it.ProductId,
-                    ProductName = it.Product?.Name ?? "",
-                    ProductQuantity = it.ProductQuantity,
-                }).ToList() ?? new List<SaleInvoiceItemDto>(),
-                Payments = i.Payments?.Where(p => !p.IsDeleted).Select(p => new SaleInvoicePaymentDto
-                {
-                    Id = p.Id,
-                    Amount = p.Amount,
-                }).ToList() ?? new List<SaleInvoicePaymentDto>(),
-            }).ToList() ?? new List<SaleInvoiceDto>(),
+                { Id = it.Id, ProductId = it.ProductId, ProductName = it.Product?.Name ?? "", ProductQuantity = it.ProductQuantity })
+        .ToList() ?? new(),
+                Payments = i.Payments?.Where(p => !p.IsDeleted).Select(p => new SaleInvoicePaymentDto { Id = p.Id, Amount = p.Amount })
+        .ToList() ?? new(),
+            }).ToList() ?? new(),
             Expenses = shift.Expenses?.Where(e => !e.IsDeleted).Select(e => new ExpenseDto
             {
                 Id = e.Id,
                 Amount = e.Amount,
                 ExpenseTypeId = e.ExpenseTypeId,
-            }).ToList() ?? new List<ExpenseDto>(),
+                ExpenseTypeName = e.ExpenseType?.Name ?? "",
+                Notes = e.Notes
+            }).ToList() ?? new(),
             Loans = shift.Loans?.Where(l => !l.IsDeleted).Select(l => new EmployeeLoanDto
             {
                 Id = l.Id,
                 Amount = l.Amount,
-                EmployeeId = l.EmployeeId
-            }).ToList() ?? new List<EmployeeLoanDto>(),
+                EmployeeId = l.EmployeeId,
+                EmployeeName = l.Employee?.Name ?? "",
+                Notes = l.Notes
+            }).ToList() ?? new(),
+            MoneySafeId = safeId > 0 ? safeId : null,
+            Custody = safeId > 0 ? live.Where(t => t.InMoneySafeId == safeId).Sum(t => t.TransactionAmount) : 0,
+            Delivered = safeId > 0 ? live.Where(t => t.OutMoneySafeId == safeId).Sum(t => t.TransactionAmount) : 0,
             Transactions = shift.Transactions?.Where(t => !t.IsDeleted).Select(t => new MoneySafeTransactionDto
             {
                 Id = t.Id,
@@ -105,12 +124,13 @@ public class ShiftService : IShiftService
             .Include(s => s.Car)
             .Include(s => s.Store)
             .Include(s => s.Invoices)
-            .Include(s => s.Invoices).ThenInclude(z => z.Items)
+            .Include(s => s.Invoices).ThenInclude(z => z.Customer)
+            .Include(s => s.Invoices).ThenInclude(z => z.Items).ThenInclude(z => z.Product)
             .Include(s => s.Invoices).ThenInclude(z => z.Payments)
             .Include(s => s.Invoices).ThenInclude(z => z.Order)
             .Include(s => s.Invoices).ThenInclude(z => z.Order).ThenInclude(z => z.Items)
-            .Include(s => s.Expenses)
-            .Include(s => s.Loans)
+            .Include(s => s.Expenses).ThenInclude(z => z.ExpenseType)
+            .Include(s => s.Loans).ThenInclude(z => z.Employee)
             .Include(s => s.Transactions)
             .Include(s => s.Project)
             .Include(s => s.Techs!.Where(t => !t.IsDeleted))
@@ -210,6 +230,19 @@ public class ShiftService : IShiftService
             if (tech.Date == default)
                 tech.Date = dto.Date; // default a tech's date to the shift's date if not supplied
         }
+        var leads = dto.Techs.Count(t => t.TechType is TechType.Tech or TechType.Tech_And_Helper);
+        if (leads != 1)
+            return "The shift needs exactly one primary technician (Tech or Tech_And_Helper)";
+
+        var dayStart = dto.Date.Date; var dayEnd = dayStart.AddDays(1);
+        var clash = await _dbContext.Shift
+            .Where(s => !s.IsDeleted && s.Id != dto.Id && s.Date >= dayStart && s.Date < dayEnd
+                     && (s.StoreId == dto.StoreId || s.CarId == dto.CarId))
+            .Select(s => new { s.StoreId }).FirstOrDefaultAsync();
+        if (clash != null)
+            return clash.StoreId == dto.StoreId
+                ? "A shift already exists for this store on this date"
+                : "A shift already exists for this car on this date";
 
         return null; // no validation errors
     }
@@ -220,7 +253,9 @@ public class ShiftService : IShiftService
             .AsNoTracking()
             .ToListAsync();
 
-        return ServiceResult<List<ShiftDto>>.Ok(shifts.Select(ToDto).ToList());
+        var safes = await SafeIdsAsync(shifts);
+        return ServiceResult<List<ShiftDto>>.Ok(shifts.Select(s => ToDto(s, safes.GetValueOrDefault(s.Id))).ToList());
+        //return ServiceResult<List<ShiftDto>>.Ok(shifts.Select(ToDto).ToList());
     }
     
     public async Task<ServiceResult<List<ShiftDto>>> GetAllByDateAsync(DateTime date)
@@ -229,7 +264,9 @@ public class ShiftService : IShiftService
             .AsNoTracking()
             .ToListAsync();
 
-        return ServiceResult<List<ShiftDto>>.Ok(shifts.Select(ToDto).ToList());
+        var safes = await SafeIdsAsync(shifts);
+        return ServiceResult<List<ShiftDto>>.Ok(shifts.Select(s => ToDto(s, safes.GetValueOrDefault(s.Id))).ToList());
+        //return ServiceResult<List<ShiftDto>>.Ok(shifts.Select(ToDto).ToList());
     }
 
     public async Task<ServiceResult<ShiftDto?>> GetByStoreIdAndDateAsync(long storeId, DateTime date)
@@ -247,7 +284,8 @@ public class ShiftService : IShiftService
         if (shift is null)
             return ServiceResult<ShiftDto?>.NotFound("Shift not found");
 
-        return ServiceResult<ShiftDto?>.Ok(ToDto(shift));
+        var safeId = (await SafeIdsAsync(new[] { shift })).GetValueOrDefault(shift.Id);
+        return ServiceResult<ShiftDto?>.Ok(ToDto(shift, safeId));
     }
 
     public async Task<ServiceResult<ShiftDto?>> GetByIdAsync(long id)
@@ -262,7 +300,8 @@ public class ShiftService : IShiftService
         if (shift is null)
             return ServiceResult<ShiftDto?>.NotFound("Shift not found");
 
-        return ServiceResult<ShiftDto?>.Ok(ToDto(shift));
+        var safeId = (await SafeIdsAsync(new[] { shift })).GetValueOrDefault(shift.Id);
+        return ServiceResult<ShiftDto?>.Ok(ToDto(shift, safeId));
     }
 
     public async Task<ServiceResult<ShiftDto>> CreateAsync(ShiftDto dto)
@@ -310,7 +349,9 @@ public class ShiftService : IShiftService
             .AsNoTracking()
             .FirstAsync(s => s.Id == shift.Id);
 
-        return ServiceResult<ShiftDto>.Ok(ToDto(created));
+
+        var safeId = (await SafeIdsAsync(new[] { shift })).GetValueOrDefault(shift.Id);
+        return ServiceResult<ShiftDto>.Ok(ToDto(created, safeId));
     }
 
     public async Task<ServiceResult<bool>> UpdateAsync(long id, ShiftDto dto)
@@ -429,4 +470,184 @@ public class ShiftService : IShiftService
         _logger.LogInformation("Shift with Id {ShiftId} soft-deleted successfully", id);
         return ServiceResult<bool>.Ok(true);
     }
+
+    public async Task<ServiceResult<ShiftBoardDto>> GetBoardAsync(long storeId, DateTime date)
+    {
+        if (storeId <= 0) return ServiceResult<ShiftBoardDto>.Failed("A valid store Id is required");
+        if (date == default) return ServiceResult<ShiftBoardDto>.Failed("A valid date is required");
+
+        var day = date.Date; var next = day.AddDays(1);
+        var shift = await WithIncludes(_dbContext.Shift
+                .Where(z => !z.IsDeleted && z.StoreId == storeId && z.Date >= day && z.Date < next))
+            .AsSplitQuery().AsNoTracking().FirstOrDefaultAsync();
+
+        var invoiceIds = shift?.Invoices.Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale).Select(i => i.Id).ToList()
+                         ?? new List<long>();
+        var items = await _stock.GetShiftItemsAsync(storeId, day, invoiceIds);
+        var p = await PrimarySafeAsync(shift);
+
+        if (shift != null)
+        {
+            // the order lines of the shift's invoices (WithIncludes already loads Order and its Items)
+            var orderLines = shift.Invoices
+                .Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale && i.Order != null)
+                .Select(i => i.Order!).DistinctBy(o => o.Id)
+                .SelectMany(o => o.Items.Where(x => !x.IsDeleted)
+                    .Select(x => new { OrderId = o.Id, x.ProductId, Qty = x.ProductQuantity }))
+                .ToList();
+
+            // a product that is only in an order (no stock move yet) still gets a row
+            var known = items.Select(r => r.ProductId).ToHashSet();
+            var missing = orderLines.Select(l => l.ProductId).Where(id => !known.Contains(id)).Distinct().ToList();
+            if (missing.Count > 0)
+            {
+                var extra = await _dbContext.Product
+                    .Where(p => missing.Contains(p.Id) && p.StorageType == StorageType.مخزني)
+                    .Select(p => new { p.Id, p.Name }).ToListAsync();
+                items.AddRange(extra.Select(p => new ShiftItemRowDto { ProductId = p.Id, ProductName = p.Name }));
+                items = items.OrderBy(r => r.ProductName).ToList();
+            }
+
+            var byProduct = orderLines.GroupBy(l => l.ProductId).ToDictionary(g => g.Key,
+                g => g.GroupBy(l => l.OrderId).ToDictionary(x => x.Key, x => x.Sum(l => l.Qty)));
+            foreach (var r in items) r.OrderedByOrder = byProduct.GetValueOrDefault(r.ProductId) ?? new();
+        }
+
+        var board = new ShiftBoardDto { Shift = shift == null ? null : ToDto(shift, p?.SafeId ?? 0), Items = items };
+
+        //var board = new ShiftBoardDto
+        //{
+        //    Shift = shift == null ? null : ToDto(shift, p?.SafeId ?? 0),
+        //    Items = await _stock.GetShiftItemsAsync(storeId, day, invoiceIds)
+        //};
+
+        if (shift != null)
+        {
+            board.PrimaryTechName = p?.TechName; board.MoneySafeId = p?.SafeId; board.MoneySafeName = p?.SafeName;
+            board.OpenOrders = await _dbContext.Order
+                .Where(o => !o.IsDeleted && o.Status == OrderStatus.قيد_التنفيذ)
+                .OrderBy(o => o.Id)
+                .Select(o => new OpenOrderDto { Id = o.Id, CustomerName = o.Customer!.Name, NetTotal = o.NetTotal })
+                .ToListAsync();
+        }
+        return ServiceResult<ShiftBoardDto>.Ok(board);
+    }
+
+    private static bool IsLead(ShiftTech t) => !t.IsDeleted && t.TechType is TechType.Tech or TechType.Tech_And_Helper;
+
+    private async Task<(string TechName, long SafeId, string SafeName)?> PrimarySafeAsync(Shift s)
+    {
+        if (s == null)
+            return null;
+        var tech = s.Techs.FirstOrDefault(IsLead);
+        if (tech is null) return null;
+        var safe = await _dbContext.MoneySafe
+            .Where(m => !m.IsDeleted && m.ManagerId == tech.TechId)
+            .OrderBy(m => m.Id).Select(m => new { m.Id, m.Name }).FirstOrDefaultAsync();
+        return safe is null ? null : (tech.Tech?.Name ?? "", safe.Id, safe.Name);
+    }
+
+    private async Task<(Shift? Shift, long SafeId, string? Error)> ContextAsync(long id)
+    {
+        var shift = await _dbContext.Shift.Include(s => s.Techs.Where(t => !t.IsDeleted)).ThenInclude(t => t.Tech)
+            .AsNoTracking().FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
+        if (shift is null) return (null, 0, "Shift not found");
+        var p = await PrimarySafeAsync(shift);
+        return p is null ? (null, 0, "The primary technician has no money safe") : (shift, p.Value.SafeId, null);
+    }
+
+    public async Task<ServiceResult<ExpenseDto>> AddExpenseAsync(long shiftId, ExpenseDto dto)
+    {
+        var (shift, safeId, err) = await ContextAsync(shiftId);
+        if (shift is null) return ServiceResult<ExpenseDto>.Failed(err!);
+        dto.ShiftId = shiftId; dto.MoneySafeId = safeId; dto.Date = shift.Date; dto.ProjectId ??= shift.ProjectId;
+        return await _expenses.CreateAsync(dto);
+    }
+
+    public async Task<ServiceResult<EmployeeLoanDto>> AddLoanAsync(long shiftId, EmployeeLoanDto dto)
+    {
+        var (shift, safeId, err) = await ContextAsync(shiftId);
+        if (shift is null) return ServiceResult<EmployeeLoanDto>.Failed(err!);
+        dto.ShiftId = shiftId; dto.MoneySafeId = safeId; dto.ProjectId ??= shift.ProjectId;
+        dto.InstallmentCount = 0;
+        if (dto.StartDate == default) dto.StartDate = new DateTime(shift.Date.Year, shift.Date.Month, 1).AddMonths(1);
+        return await _loans.CreateAsync(dto);
+    }
+
+    public async Task<ServiceResult<SaleInvoiceDto>> AddInvoiceAsync(long shiftId, SaleInvoiceDto dto)
+    {
+        var (shift, safeId, err) = await ContextAsync(shiftId);
+        if (shift is null) return ServiceResult<SaleInvoiceDto>.Failed(err!);
+        if (dto.OrderId is null) return ServiceResult<SaleInvoiceDto>.Failed("An order is required");
+
+        var open = await _dbContext.Order.AnyAsync(o => o.Id == dto.OrderId && !o.IsDeleted && o.Status == OrderStatus.قيد_التنفيذ);
+        if (!open) return ServiceResult<SaleInvoiceDto>.Failed("The order is not in progress");
+
+        dto.ShiftId = shiftId; dto.Type = InvoiceType.Sale; dto.Date = shift.Date;
+        foreach (var i in dto.Items) if (i.StoreId <= 0) i.StoreId = shift.StoreId;
+        foreach (var p in dto.Payments) { p.MoneySafeId = safeId; p.PaymentDate = shift.Date; }
+        return await _invoices.CreateAsync(dto);
+    }
+
+
+    #region MS-Transactions
+    // the primary tech's safe of many shifts in one query (same rule as PrimarySafeAsync: lowest id)
+    private async Task<Dictionary<long, long>> SafeIdsAsync(IEnumerable<Shift> shifts)
+    {
+        var list = shifts.ToList();
+        var techIds = list.SelectMany(s => s.Techs.Where(IsLead)).Select(t => (long?)t.TechId).Distinct().ToList();
+        var safes = await _dbContext.MoneySafe
+            .Where(m => !m.IsDeleted && techIds.Contains(m.ManagerId))
+            .Select(m => new { m.Id, ManagerId = (long)m.ManagerId! }).ToListAsync();
+        var byTech = safes.GroupBy(x => x.ManagerId).ToDictionary(g => g.Key, g => g.Min(x => x.Id));
+
+        var result = new Dictionary<long, long>();
+        foreach (var s in list)
+        {
+            var lead = s.Techs.FirstOrDefault(IsLead);
+            if (lead != null && byTech.TryGetValue(lead.TechId, out var safeId)) result[s.Id] = safeId;
+        }
+        return result;
+    }
+    public Task<ServiceResult<MoneySafeTransactionDto>> AddCustodyAsync(long shiftId, ShiftTransferRequestDto r) =>
+    TransferAsync(shiftId, r, toTech: true);
+
+    public Task<ServiceResult<MoneySafeTransactionDto>> AddSettlementAsync(long shiftId, ShiftTransferRequestDto r) =>
+        TransferAsync(shiftId, r, toTech: false);
+
+    private async Task<ServiceResult<MoneySafeTransactionDto>> TransferAsync(long shiftId, ShiftTransferRequestDto r, bool toTech)
+    {
+        var (shift, safeId, err) = await ContextAsync(shiftId);
+        if (shift is null) return ServiceResult<MoneySafeTransactionDto>.Failed(err!);
+        if (r.Amount <= 0) return ServiceResult<MoneySafeTransactionDto>.Failed("Amount must be greater than zero");
+        if (r.MoneySafeId <= 0 || r.MoneySafeId == safeId)
+            return ServiceResult<MoneySafeTransactionDto>.Failed("Choose a money safe other than the technician's safe");
+        if (!await _dbContext.MoneySafe.AnyAsync(m => m.Id == r.MoneySafeId && !m.IsDeleted))
+            return ServiceResult<MoneySafeTransactionDto>.Failed("Money safe not found");
+
+        // one handover per shift
+        if (!toTech && await _dbContext.MoneySafeTransaction.AnyAsync(t =>
+                t.ShiftId == shiftId && !t.IsDeleted && t.OutMoneySafeId == safeId))
+            return ServiceResult<MoneySafeTransactionDto>.Failed("This shift already has an end-of-shift handover. Delete it first to add another");
+
+        return await _transactions.CreateAsync(new MoneySafeTransactionDto
+        {
+            TransactionAmount = r.Amount,
+            TransactionDate = shift.Date,
+            InMoneySafeId = toTech ? safeId : r.MoneySafeId,
+            OutMoneySafeId = toTech ? r.MoneySafeId : safeId,
+            ShiftId = shiftId,
+            TransactionNotes = r.Notes,
+            AuditorId = r.AuditorId,
+        });
+    }
+
+    public async Task<ServiceResult<bool>> DeleteTransactionAsync(long shiftId, long transactionId)
+    {
+        var belongs = await _dbContext.MoneySafeTransaction
+            .AnyAsync(t => t.Id == transactionId && t.ShiftId == shiftId && !t.IsDeleted);
+        if (!belongs) return ServiceResult<bool>.NotFound("Transaction not found in this shift");
+        return await _transactions.DeleteAsync(transactionId);
+    }
+    #endregion
 }

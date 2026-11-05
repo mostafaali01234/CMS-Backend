@@ -208,20 +208,17 @@ public class StoreTransactionService : IStoreTransactionService
         return ServiceResult<StoreTransactionDto?>.Ok(ToDto(transaction));
     }
 
-    public async Task<ServiceResult<StoreTransactionDto>> CreateAsync(StoreTransactionDto dto)
+    public Task<ServiceResult<StoreTransactionDto>> CreateAsync(StoreTransactionDto dto) =>
+    _stock.RunExclusiveAsync(() => CreateCoreAsync(dto));
+    private async Task<ServiceResult<StoreTransactionDto>> CreateCoreAsync(StoreTransactionDto dto)
     {
         var validationError = await ValidateAsync(dto);
         if (validationError is not null)
-        {
-            _logger.LogWarning("Validation failed while creating store transaction: {Error}", validationError);
             return ServiceResult<StoreTransactionDto>.Failed(validationError);
-        }
 
-        var stockError = await _stock.CheckChangeAsync(new StockExclusion(),
-            Array.Empty<StockDelta>(),
+        var stockError = await _stock.CheckChangeAsync(new StockExclusion(), Array.Empty<StockDelta>(),
             StockDeltas.Transfer(dto.OutStoreId, dto.InStoreId, dto.TransactionItems.Select(i => (i.ItemId, i.Quantity))));
         if (stockError is not null) return ServiceResult<StoreTransactionDto>.Failed(stockError);
-
 
         var transaction = new StoreTransaction
         {
@@ -237,56 +234,30 @@ public class StoreTransactionService : IStoreTransactionService
             }).ToList()
         };
 
-        // Using an execution strategy + explicit transaction so the header and all
-        // item rows are inserted atomically (either all succeed or none do).
-        var strategy = _dbContext.Database.CreateExecutionStrategy();
-
-        await strategy.ExecuteAsync(async () =>
-        {
-            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
-
-            _dbContext.StoreTransaction.Add(transaction);
-            await _dbContext.SaveChangesAsync();
-
-            await dbTransaction.CommitAsync();
-        });
-
-        _logger.LogInformation("Store transaction created with Id {TransactionId} ({ItemCount} items)",
-            transaction.Id, transaction.Items.Count);
+        _dbContext.StoreTransaction.Add(transaction);
+        await _dbContext.SaveChangesAsync();
 
         var created = await _dbContext.StoreTransaction
-            .Include(t => t.Auditor)
-            .Include(t => t.OutStore)
-            .Include(t => t.InStore)
-            .Include(t => t.Items!)
-                .ThenInclude(i => i.Product)
-            .AsNoTracking()
-            .FirstAsync(t => t.Id == transaction.Id);
+            .Include(t => t.Auditor).Include(t => t.OutStore).Include(t => t.InStore)
+            .Include(t => t.Items!).ThenInclude(i => i.Product)
+            .AsNoTracking().FirstAsync(t => t.Id == transaction.Id);
 
         return ServiceResult<StoreTransactionDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, StoreTransactionDto dto)
+    public Task<ServiceResult<bool>> UpdateAsync(long id, StoreTransactionDto dto) =>
+    _stock.RunExclusiveAsync(() => UpdateCoreAsync(id, dto));
+    private async Task<ServiceResult<bool>> UpdateCoreAsync(long id, StoreTransactionDto dto)
     {
-        if (dto is null)
-            return ServiceResult<bool>.Failed("Transaction payload is required");
+        if (dto is null) return ServiceResult<bool>.Failed("Transaction payload is required");
+        if (id != dto.Id) return ServiceResult<bool>.Failed("Id in the route does not match the Id in the payload");
 
-        if (id != dto.Id)
-            return ServiceResult<bool>.Failed("Id in the route does not match the Id in the payload");
-
-        var existing = await _dbContext.StoreTransaction
-            .Include(t => t.Items)
+        var existing = await _dbContext.StoreTransaction.Include(t => t.Items)
             .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted);
-
-        if (existing is null)
-            return ServiceResult<bool>.NotFound("Transaction not found");
+        if (existing is null) return ServiceResult<bool>.NotFound("Transaction not found");
 
         var validationError = await ValidateAsync(dto);
-        if (validationError is not null)
-        {
-            _logger.LogWarning("Validation failed while updating store transaction {TransactionId}: {Error}", id, validationError);
-            return ServiceResult<bool>.Failed(validationError);
-        }
+        if (validationError is not null) return ServiceResult<bool>.Failed(validationError);
 
         var stockError = await _stock.CheckChangeAsync(new StockExclusion(StoreTransactionId: id),
             StockDeltas.Transfer(existing.OutStoreId, existing.InStoreId,
@@ -294,52 +265,27 @@ public class StoreTransactionService : IStoreTransactionService
             StockDeltas.Transfer(dto.OutStoreId, dto.InStoreId, dto.TransactionItems.Select(i => (i.ItemId, i.Quantity))));
         if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
 
-        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        existing.TransactionDate = dto.TransactionDate;
+        existing.AuditorId = dto.AuditorId;
+        existing.Notes = dto.Notes;
+        existing.OutStoreId = dto.OutStoreId;
+        existing.InStoreId = dto.InStoreId;
 
-        await strategy.ExecuteAsync(async () =>
+        if (existing.Items is { Count: > 0 }) _dbContext.StoreTransactionItem.RemoveRange(existing.Items);
+        await _dbContext.StoreTransactionItem.AddRangeAsync(dto.TransactionItems.Select(i => new StoreTransactionItem
         {
-            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+            TransactionId = existing.Id,
+            ProductId = i.ItemId,
+            Quantity = i.Quantity
+        }));
 
-            // Update header fields
-            existing.TransactionDate = dto.TransactionDate;
-            existing.AuditorId = dto.AuditorId;
-            existing.Notes = dto.Notes;
-            existing.OutStoreId = dto.OutStoreId;
-            existing.InStoreId = dto.InStoreId;
-
-            // Replace all line items: remove existing, add the new set
-            if (existing.Items is { Count: > 0 })
-            {
-                _dbContext.StoreTransactionItem.RemoveRange(existing.Items);
-            }
-
-            var newItems = dto.TransactionItems.Select(i => new StoreTransactionItem
-            {
-                TransactionId = existing.Id,
-                ProductId = i.ItemId,
-                Quantity = i.Quantity
-            }).ToList();
-
-            await _dbContext.StoreTransactionItem.AddRangeAsync(newItems);
-
-            try
-            {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                _logger.LogError(ex, "Concurrency error occurred while updating store transaction with Id {TransactionId}", id);
-                throw;
-            }
-
-            await dbTransaction.CommitAsync();
-        });
-
-        _logger.LogInformation("Store transaction with Id {TransactionId} updated successfully", id);
+        await _dbContext.SaveChangesAsync();
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> DeleteAsync(long id)
+    public Task<ServiceResult<bool>> DeleteAsync(long id) =>
+    _stock.RunExclusiveAsync(() => DeleteCoreAsync(id));
+    private async Task<ServiceResult<bool>> DeleteCoreAsync(long id)
     {
         var transaction = await _dbContext.StoreTransaction
             .Include(t => t.Items)

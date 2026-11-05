@@ -134,8 +134,8 @@ public class ProductService : IProductService
         if (isUpdate && currentId.HasValue)
             barcodeQuery = barcodeQuery.Where(p => p.Id != currentId.Value);
 
-        if (await barcodeQuery.AnyAsync())
-            return $"A product with barcode '{dto.Barcode}' already exists";
+        //if (await barcodeQuery.AnyAsync())
+        //    return $"A product with barcode '{dto.Barcode}' already exists";
 
         // --- Description (optional, length only) ---
         if (!string.IsNullOrWhiteSpace(dto.Description) && dto.Description.Length > DescriptionMaxLength)

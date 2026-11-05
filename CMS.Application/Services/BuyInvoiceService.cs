@@ -542,7 +542,9 @@ public class BuyInvoiceService : IBuyInvoiceService
         return ServiceResult<BuyInvoiceDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateAsync(long id, BuyInvoiceDto dto, bool isSuperAdmin = false)
+    public Task<ServiceResult<bool>> UpdateAsync(long id, BuyInvoiceDto dto, bool isSuperAdmin = false) =>
+    _stock.RunExclusiveAsync(() => UpdateCoreAsync(id, dto, isSuperAdmin));
+    private async Task<ServiceResult<bool>> UpdateCoreAsync(long id, BuyInvoiceDto dto, bool isSuperAdmin = false)
     {
         if (dto is null)
             return ServiceResult<bool>.Failed("Invoice payload is required");
@@ -610,11 +612,11 @@ public class BuyInvoiceService : IBuyInvoiceService
                 return ServiceResult<bool>.Failed("Net total in currency cannot be less than the currency already paid");
         }
 
-        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        //var strategy = _dbContext.Database.CreateExecutionStrategy();
 
-        await strategy.ExecuteAsync(async () =>
-        {
-            using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
+        //await strategy.ExecuteAsync(async () =>
+        //{
+        //    using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
 
             //existing.Number = dto.Number;
             existing.Type = dto.Type;
@@ -651,24 +653,26 @@ public class BuyInvoiceService : IBuyInvoiceService
 
             await _dbContext.BuyInvoiceItem.AddRangeAsync(newItems);
 
-            try
-            {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                _logger.LogError(ex, "Concurrency error occurred while updating buy invoice with Id {InvoiceId}", id);
-                throw;
-            }
+        //    try
+        //    {
+        //        await _dbContext.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateConcurrencyException ex)
+        //    {
+        //        _logger.LogError(ex, "Concurrency error occurred while updating buy invoice with Id {InvoiceId}", id);
+        //        throw;
+        //    }
 
-            await dbTransaction.CommitAsync();
-        });
+        //    await dbTransaction.CommitAsync();
+        //});
 
         _logger.LogInformation("Buy invoice with Id {InvoiceId} updated successfully", id);
         return ServiceResult<bool>.Ok(true);
     }
 
-    public async Task<ServiceResult<bool>> DeleteAsync(long id, bool isSuperAdmin = false)
+    public Task<ServiceResult<bool>> DeleteAsync(long id, bool isSuperAdmin = false) =>
+    _stock.RunExclusiveAsync(() => DeleteCoreAsync(id, isSuperAdmin));
+    private async Task<ServiceResult<bool>> DeleteCoreAsync(long id, bool isSuperAdmin = false)
     {
         var invoice = await _dbContext.BuyInvoice
             .Include(i => i.Items)
@@ -892,7 +896,10 @@ public class BuyInvoiceService : IBuyInvoiceService
         invoice.NetTotalCurrency = Math.Round(cur.Sum(i => i.ProductNetTotal), 2);
     }
 
-    public async Task<ServiceResult<BuyInvoiceDto>> CreateReturnAsync(BuyReturnRequestDto req)
+
+    public Task<ServiceResult<BuyInvoiceDto>> CreateReturnAsync(BuyReturnRequestDto req) =>
+    _stock.RunExclusiveAsync(() => CreateReturnCoreAsync(req));
+    private async Task<ServiceResult<BuyInvoiceDto>> CreateReturnCoreAsync(BuyReturnRequestDto req)
     {
         var (error, original, items) = await PrepareReturnAsync(req, null);
         if (error is not null)
@@ -921,20 +928,19 @@ public class BuyInvoiceService : IBuyInvoiceService
         ApplyReturnTotals(invoice, items);
 
 
-        var strategy = _dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
-        {
-            using var tx = await _dbContext.Database.BeginTransactionAsync();
+        //var strategy = _dbContext.Database.CreateExecutionStrategy();
+        //await strategy.ExecuteAsync(async () =>
+        //{
+        //    using var tx = await _dbContext.Database.BeginTransactionAsync();
 
             invoice.Number = await NextNumberAsync();
 
             _dbContext.BuyInvoice.Add(invoice);
             await _dbContext.SaveChangesAsync();
 
-            await tx.CommitAsync();
-        });
-        //_dbContext.BuyInvoice.Add(invoice);
-        //await _dbContext.SaveChangesAsync();
+        //    await tx.CommitAsync();
+        //});
+
 
         _logger.LogInformation("Buy return {InvoiceId} created against invoice {OriginalId}", invoice.Id, original.Id);
 
@@ -945,7 +951,10 @@ public class BuyInvoiceService : IBuyInvoiceService
         return ServiceResult<BuyInvoiceDto>.Ok(ToDto(created));
     }
 
-    public async Task<ServiceResult<bool>> UpdateReturnAsync(long id, BuyReturnRequestDto req)
+
+    public Task<ServiceResult<bool>> UpdateReturnAsync(long id, BuyReturnRequestDto req) =>
+    _stock.RunExclusiveAsync(() => UpdateReturnCoreAsync(id, req));
+    private async Task<ServiceResult<bool>> UpdateReturnCoreAsync(long id, BuyReturnRequestDto req)
     {
         var existing = await _dbContext.BuyInvoice
             .Include(i => i.Items)
@@ -968,7 +977,6 @@ public class BuyInvoiceService : IBuyInvoiceService
             StockDeltas.Buy(InvoiceType.Buy_Return, existing.Items.Where(i => !i.IsDeleted).Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))),
             StockDeltas.Buy(InvoiceType.Buy_Return, items.Select(i => (i.StoreId, i.ProductId, i.ProductQuantity))));
         if (stockError is not null) return ServiceResult<bool>.Failed(stockError);
-
 
 
         //existing.Number = req!.Number;

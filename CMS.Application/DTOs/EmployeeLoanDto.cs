@@ -1,6 +1,7 @@
 ﻿// Models/DTOs/EmployeeLoanDto.cs
-using System.Text.Json.Serialization;
+using CMS.Application.DTOs;
 using CMS.Domain.Enums;
+using System.Text.Json.Serialization;
 
 namespace CMS.Domain.DTOs
 {
@@ -80,5 +81,31 @@ namespace CMS.Domain.DTOs
 
         [JsonPropertyName("status")]
         public InstallmentStatus Status { get; set; }
+    }
+
+    public class EmployeeLoanFilterDto : PagedFilterDto
+    {
+        public DateTime? DateFrom { get; set; }      // on the loan's start date
+        public DateTime? DateTo { get; set; }
+        public long? EmployeeId { get; set; }
+        public string? Mode { get; set; }            // "safe" | "installments" | null = all
+        public string? Search { get; set; }          // employee name
+    }
+
+    public class EmployeeLoanListItemDto
+    {
+        [JsonPropertyName("id")] public long Id { get; set; }
+        [JsonPropertyName("employee_id")] public long EmployeeId { get; set; }
+        [JsonPropertyName("employee_name")] public string EmployeeName { get; set; } = "";
+        [JsonPropertyName("approved_by_name")] public string ApprovedByName { get; set; } = "";
+        [JsonPropertyName("amount")] public decimal Amount { get; set; }
+        [JsonPropertyName("money_safe_name")] public string MoneySafeName { get; set; } = "";
+        [JsonPropertyName("installment_count")] public int InstallmentCount { get; set; }
+        [JsonPropertyName("start_date")] public DateTime StartDate { get; set; }
+        [JsonPropertyName("created_at_utc")] public DateTime CreatedAtUtc { get; set; }
+        [JsonPropertyName("project_name")] public string ProjectName { get; set; } = "";
+        [JsonPropertyName("deducted_count")] public int DeductedCount { get; set; }
+        [JsonPropertyName("skipped_count")] public int SkippedCount { get; set; }
+        [JsonPropertyName("pending_amount")] public decimal PendingAmount { get; set; }
     }
 }

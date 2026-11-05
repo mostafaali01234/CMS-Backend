@@ -1,10 +1,12 @@
 ﻿// Services/EmployeeLoanService.cs
+using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.DTOs;
 using CMS.Domain.Enums;
 using CMS.Domain.Models;
-using CMS.Application.Interfaces.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -195,6 +197,46 @@ public class EmployeeLoanService : IEmployeeLoanService
             .ToListAsync();
 
         return ServiceResult<List<EmployeeLoanDto>>.Ok(loans.Select(ToDto).ToList());
+    }
+
+    // EmployeeLoanService (usings: CMS.Application.Common, CMS.Application.DTOs)
+    public async Task<ServiceResult<PagedResult<EmployeeLoanListItemDto>>> GetPagedAsync(EmployeeLoanFilterDto f)
+    {
+        var q = _dbContext.EmployeeLoan.AsNoTracking().Where(l => !l.IsDeleted);
+
+        if (f.EmployeeId.HasValue) q = q.Where(l => l.EmployeeId == f.EmployeeId.Value);
+        if (f.DateFrom.HasValue) { var from = f.DateFrom.Value.Date; q = q.Where(l => l.StartDate >= from); }
+        if (f.DateTo.HasValue) { var to = f.DateTo.Value.Date.AddDays(1); q = q.Where(l => l.StartDate < to); }
+        if (f.Mode == "safe") q = q.Where(l => l.MoneySafeId != null);
+        else if (f.Mode == "installments") q = q.Where(l => l.MoneySafeId == null);
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(l => l.Employee!.Name.Contains(s));
+        }
+
+        var page = await q
+            .OrderByDescending(l => l.StartDate).ThenByDescending(l => l.Id)
+            .Select(l => new EmployeeLoanListItemDto
+            {
+                Id = l.Id,
+                EmployeeId = l.EmployeeId,
+                EmployeeName = l.Employee != null ? l.Employee.Name : "",
+                ApprovedByName = l.ApprovedBy != null ? l.ApprovedBy.Name : "",
+                Amount = l.Amount,
+                MoneySafeName = l.MoneySafe != null ? l.MoneySafe.Name : "",
+                InstallmentCount = l.InstallmentCount,
+                StartDate = l.StartDate,
+                CreatedAtUtc = l.CreatedAtUtc,
+                ProjectName = l.Project != null ? l.Project.Name : "",
+                DeductedCount = l.Installments.Count(i => !i.IsDeleted && i.Status == InstallmentStatus.Deducted),
+                SkippedCount = l.Installments.Count(i => !i.IsDeleted && i.Status == InstallmentStatus.Skipped),
+                PendingAmount = l.Installments.Where(i => !i.IsDeleted && i.Status == InstallmentStatus.Pending)
+                                              .Sum(i => (decimal?)i.Amount) ?? 0
+            })
+            .ToPagedAsync(f);
+
+        return ServiceResult<PagedResult<EmployeeLoanListItemDto>>.Ok(page);
     }
 
     public async Task<ServiceResult<EmployeeLoanDto?>> GetByIdAsync(long id)

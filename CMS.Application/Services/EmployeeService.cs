@@ -1,6 +1,7 @@
 ﻿
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
 using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Enums;
@@ -257,6 +258,44 @@ public class EmployeeService : IEmployeeService
         var dtos = await QueryDtos().ToListAsync();
         await FillUserEmailsAsync(dtos);
         return ServiceResult<List<EmployeeDto>>.Ok(dtos);
+    }
+
+    // EmployeeService (usings: CMS.Application.Common, CMS.Domain.DTOs)
+    public async Task<ServiceResult<PagedResult<EmployeeListItemDto>>> GetPagedAsync(EmployeeFilterDto f)
+    {
+        var q = _dbContext.Employee.AsNoTracking().Where(e => !e.IsDeleted);
+
+        if (f.DepartmentId.HasValue) q = q.Where(e => e.DepartmentId == f.DepartmentId.Value);
+        if (f.JobId.HasValue) q = q.Where(e => e.JobId == f.JobId.Value);
+        if (f.Active.HasValue) q = q.Where(e => e.Active == f.Active.Value);
+
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var s = f.Search.Trim();
+            q = q.Where(e => e.Name.Contains(s) || e.PersonalPhone.Contains(s) || e.WorkPhone.Contains(s));
+        }
+
+        var page = await q
+            .OrderBy(e => e.Name).ThenBy(e => e.Id)
+            .Select(e => new EmployeeListItemDto
+            {
+                Id = e.Id,
+                Name = e.Name,
+                Phone = e.PersonalPhone != "" ? e.PersonalPhone : e.WorkPhone,
+                DepartmentName = e.Department != null ? e.Department.Name : "",
+                // the manager is an employee referenced by Department.ManagerId
+                ManagerName = e.Department != null
+                    ? (_dbContext.Employee.Where(m => m.Id == e.Department.ManagerId)
+                                          .Select(m => m.Name).FirstOrDefault() ?? "")
+                    : "",
+                Salary = e.Salary,
+                HireDate = e.HireDate,
+                JobName = e.Job != null ? e.Job.Name : "",
+                Active = e.Active
+            })
+            .ToPagedAsync(f);
+
+        return ServiceResult<PagedResult<EmployeeListItemDto>>.Ok(page);
     }
 
     public async Task<ServiceResult<EmployeeDto?>> GetByIdAsync(long id)
