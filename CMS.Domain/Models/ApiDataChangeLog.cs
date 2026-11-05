@@ -32,7 +32,7 @@ namespace CMS.Domain.Models
         public string? OldValue { get; set; }   // NVARCHAR(MAX)
 
         [Column("new_value")]
-        public string NewValue { get; set; }   // NVARCHAR(MAX)
+        public string? NewValue { get; set; }   // NVARCHAR(MAX)
 
         [Column("user_id")]
         public string UserId { get; set; }   

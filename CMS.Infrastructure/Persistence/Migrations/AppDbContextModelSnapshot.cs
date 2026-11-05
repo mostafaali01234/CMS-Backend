@@ -111,7 +111,6 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnName("log_id");
 
                     b.Property<string>("NewValue")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("new_value");
 
@@ -1167,6 +1166,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("net_total");
+
+                    b.Property<DateTime?>("RevisedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("revised_at");
 
                     b.Property<long?>("RevisedById")
                         .HasColumnType("bigint")

@@ -142,6 +142,7 @@ builder.Services.AddScoped<IMoneySafeTransactionService, MoneySafeTransactionSer
 builder.Services.AddScoped<IUserLookup, UserLookup>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<ICommissionService, CommissionService>();
 
 builder.Services.AddCorrelationIdManager();
 

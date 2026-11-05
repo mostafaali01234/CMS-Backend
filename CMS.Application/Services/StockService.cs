@@ -582,6 +582,12 @@ public class StockService : IStockService
         var buys = await _db.BuyInvoice.Where(i => buyIds.Contains(i.Id))
             .Include(i => i.Payments).Include(i => i.Returns).AsNoTracking().ToDictionaryAsync(i => i.Id);
 
+        var comm = (await _db.EmployeeCommission.Where(c => !c.IsDeleted && saleIds.Contains(c.InvoiceId))
+            .GroupBy(c => new { c.InvoiceId, c.ProductId })
+            .Select(g => new { g.Key.InvoiceId, g.Key.ProductId, Total = g.Sum(x => x.Amount + x.Extra_Amount) })
+            .ToListAsync()).ToDictionary(x => (x.InvoiceId, x.ProductId), x => x.Total);
+
+
         return rows.Select(m =>
         {
             var d = ToMoveDto(m, store, running.GetValueOrDefault((m.Operation, m.LineId)));
@@ -590,6 +596,7 @@ public class StockService : IStockService
             {
                 d.CustomerName = m.PartyName;
                 d.SellerName = m.SellerName;
+                d.Commission = comm.GetValueOrDefault((m.DocId, m.ProductId));
                 d.ProductPrice = m.Price;
                 d.InvoiceTotal = si.NetTotal;
                 if (!m.IsReturn)

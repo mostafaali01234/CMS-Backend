@@ -16,6 +16,8 @@ namespace CMS.Application.Services;
 public class SaleInvoiceService : ISaleInvoiceService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly IOrderNoteHistoryService _noteService;
+    private readonly ICommissionService _commission;
     private readonly IStockService _stock;
     private readonly ILogger<SaleInvoiceService> _logger;
 
@@ -25,11 +27,15 @@ public class SaleInvoiceService : ISaleInvoiceService
     public SaleInvoiceService(
         IAppDbContext dbContext,
         IStockService stock,
+        IOrderNoteHistoryService noteService,
+        ICommissionService commission,
         ILogger<SaleInvoiceService> logger)
     {
         _dbContext = dbContext;
         _stock = stock;
         _logger = logger;
+        _noteService = noteService;
+        _commission = commission;
     }
 
     private SaleInvoiceDto ToDto(SaleInvoice invoice)
@@ -526,6 +532,9 @@ public class SaleInvoiceService : ISaleInvoiceService
 
 
         invoice.Number = await NextNumberAsync();      // the stock lock transaction is already open
+
+
+
         _dbContext.SaleInvoice.Add(invoice);
 
         if (invoice.Type == InvoiceType.Sale && invoice.OrderId.HasValue)
@@ -535,20 +544,26 @@ public class SaleInvoiceService : ISaleInvoiceService
             if (order != null)
             {
                 order.Status = OrderStatus.تام;
+                #region Notes
+                await _noteService.CreateAsync(new OrderNoteHistoryDto
+                {
+                    OrderId = order.Id,
+                    Notes = $"تم تتميم الاوردر وإنشاء فاتورة بيع رقم {invoice.Number} بنجاح.",
+                    CreatedBy = dto.CreatedBy ?? "System",
+                    AuditorId = dto.AuditorId
+                });
+                #endregion
+
             }
         }
 
+        var locked = await _commission.CheckUnlockedAsync(dto.ShiftId, Array.Empty<long>());
+        if (locked is not null) return ServiceResult<SaleInvoiceDto>.Failed(locked);
+
         await _dbContext.SaveChangesAsync();
 
-        //var strategy = _dbContext.Database.CreateExecutionStrategy();
-        //await strategy.ExecuteAsync(async () =>
-        //{
-        //    using var tx = await _dbContext.Database.BeginTransactionAsync();
-        //    invoice.Number = await NextNumberAsync();
-        //    _dbContext.SaleInvoice.Add(invoice);
-        //    await _dbContext.SaveChangesAsync();
-        //    await tx.CommitAsync();
-        //});
+        await _commission.RecalculateAsync(invoice.ShiftId, new[] { invoice.Id });
+
 
         _logger.LogInformation("Sale invoice {InvoiceId} created (Number {Number}, {Advances} advance payments attached)",
             invoice.Id, invoice.Number, advances.Count);
@@ -663,19 +678,12 @@ public class SaleInvoiceService : ISaleInvoiceService
 
         await _dbContext.SaleInvoiceItem.AddRangeAsync(newItems);
 
-        //    try
-        //    {
-        //        await _dbContext.SaveChangesAsync();
-        //    }
-        //    catch (DbUpdateConcurrencyException ex)
-        //    {
-        //        _logger.LogError(ex, "Concurrency error occurred while updating sale invoice with Id {InvoiceId}", id);
-        //        throw;
-        //    }
+        var locked = await _commission.CheckUnlockedAsync(existing.ShiftId, new[] { id });
+        if (locked is not null) return ServiceResult<bool>.Failed(locked);
 
-        //    await dbTransaction.CommitAsync();
-        //});
         await _dbContext.SaveChangesAsync();
+
+        await _commission.RecalculateAsync(existing.ShiftId, new[] { id });
 
         _logger.LogInformation("Sale invoice with Id {InvoiceId} updated successfully", id);
         return ServiceResult<bool>.Ok(true);
@@ -735,7 +743,13 @@ public class SaleInvoiceService : ISaleInvoiceService
             }
         }
 
+        var locked = await _commission.CheckUnlockedAsync(invoice.ShiftId, docs.Select(d => d.Id));
+        if (locked is not null) return ServiceResult<bool>.Failed(locked);
+
         await _dbContext.SaveChangesAsync();
+
+        await _commission.RecalculateAsync(invoice.ShiftId, docs.Select(d => d.Id));
+
         _logger.LogWarning("Sale invoice {InvoiceId} deleted with {P} payments and {R} returns", id, payments.Count, returns.Count);
         return ServiceResult<bool>.Ok(true);
     }

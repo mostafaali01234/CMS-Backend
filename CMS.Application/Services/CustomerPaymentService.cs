@@ -14,16 +14,15 @@ namespace CMS.Application.Services;
 public class CustomerPaymentService : ICustomerPaymentService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly ICommissionService _commission;
     private readonly ILogger<CustomerPaymentService> _logger;
 
     private const int NotesMaxLength = 2000;
-
-    public CustomerPaymentService(
-        IAppDbContext dbContext,
-        ILogger<CustomerPaymentService> logger)
+    public CustomerPaymentService(IAppDbContext dbContext, ILogger<CustomerPaymentService> logger, ICommissionService commission)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _commission = commission;
     }
 
     private CustomerPaymentDto ToDto(CustomerPayment p)
@@ -233,6 +232,8 @@ public class CustomerPaymentService : ICustomerPaymentService
         _dbContext.CustomerPayment.Add(entity);
         await _dbContext.SaveChangesAsync();
 
+        await RefreshCommissionsAsync(entity.Type, new[] { entity.InvoiceId });
+
         _logger.LogInformation("Customer payment created with Id {PaymentId} for Customer {CustomerId}", entity.Id, entity.CustomerId);
 
         var created = await WithIncludes(_dbContext.CustomerPayment)
@@ -251,11 +252,12 @@ public class CustomerPaymentService : ICustomerPaymentService
             return ServiceResult<bool>.Failed("Id in the route does not match the Id in the payload");
 
         var existing = await _dbContext.CustomerPayment.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        if (existing is null) return ServiceResult<bool>.NotFound("Customer payment not found");   // new
         if (dto.Type != existing.Type)
             return ServiceResult<bool>.Failed("The payment type cannot be changed");
+        
         if (existing.Type == PaymentType.Advance_Payment && existing.InvoiceId != null)
             return ServiceResult<bool>.Failed("This advance payment is attached to an invoice. Delete it and enter it again");
-
 
         var validationError = await ValidateAsync(dto, id);
         if (validationError is not null)
@@ -264,6 +266,10 @@ public class CustomerPaymentService : ICustomerPaymentService
             return ServiceResult<bool>.Failed(validationError);
         }
 
+        var locked = await CommissionLockAsync(existing.Type, new[] { existing.InvoiceId, dto.InvoiceId });   
+        if (locked is not null) return ServiceResult<bool>.Failed(locked);
+
+        var oldInvoiceId = existing.InvoiceId;                                                            
         existing.Date = dto.Date;
         existing.CustomerId = dto.CustomerId;
         existing.InvoiceId = dto.InvoiceId;
@@ -284,6 +290,8 @@ public class CustomerPaymentService : ICustomerPaymentService
             throw;
         }
 
+        await RefreshCommissionsAsync(existing.Type, new[] { oldInvoiceId, existing.InvoiceId });
+
         _logger.LogInformation("Customer payment with Id {PaymentId} updated successfully", id);
         return ServiceResult<bool>.Ok(true);
     }
@@ -291,13 +299,16 @@ public class CustomerPaymentService : ICustomerPaymentService
     public async Task<ServiceResult<bool>> DeleteAsync(long id)
     {
         var entity = await _dbContext.CustomerPayment.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
-        if (entity is null)
-            return ServiceResult<bool>.NotFound("Customer payment not found");
+        if (entity is null) return ServiceResult<bool>.NotFound("Customer payment not found");
+
+        var locked = await CommissionLockAsync(entity.Type, new[] { entity.InvoiceId });
+        if (locked is not null) return ServiceResult<bool>.Failed(locked);
 
         entity.IsDeleted = true;
         entity.DeletedAtUtc = DateTime.UtcNow;
-
         await _dbContext.SaveChangesAsync();
+
+        await RefreshCommissionsAsync(entity.Type, new[] { entity.InvoiceId });
 
         _logger.LogInformation("Customer payment with Id {PaymentId} soft-deleted successfully", id);
         return ServiceResult<bool>.Ok(true);
@@ -371,8 +382,25 @@ public class CustomerPaymentService : ICustomerPaymentService
         _dbContext.CustomerPayment.AddRange(entities);
         await _dbContext.SaveChangesAsync();
 
+        await RefreshCommissionsAsync(PaymentType.Regular_Payment, invoiceIds.Select(x => (long?)x));
+
         var ids = entities.Select(e => e.Id).ToList();
         var created = await WithIncludes(_dbContext.CustomerPayment.Where(p => ids.Contains(p.Id))).AsNoTracking().ToListAsync();
         return ServiceResult<List<CustomerPaymentDto>>.Ok(created.Select(ToDto).ToList());
+    }
+
+    private async Task RefreshCommissionsAsync(PaymentType type, IEnumerable<long?> invoiceIds)
+    {
+        if (type != PaymentType.Regular_Payment) return;
+        foreach (var id in invoiceIds.Where(x => x.HasValue).Select(x => x!.Value).Distinct())
+            await _commission.RefreshPaymentStatusAsync(id);
+    }
+
+    // a payment of an invoice whose commission was already withdrawn in a payroll cannot be edited or deleted
+    private async Task<string?> CommissionLockAsync(PaymentType type, IEnumerable<long?> invoiceIds)
+    {
+        if (type != PaymentType.Regular_Payment) return null;
+        var ids = invoiceIds.Where(x => x.HasValue).Select(x => x!.Value).ToList();
+        return ids.Count == 0 ? null : await _commission.CheckUnlockedAsync(null, ids);
     }
 }

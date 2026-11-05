@@ -19,6 +19,7 @@ public class ShiftService : IShiftService
     private readonly IEmployeeLoanService _loans;
     private readonly ISaleInvoiceService _invoices;
     private readonly IMoneySafeTransactionService _transactions;
+    private readonly ICommissionService _commission;
     private readonly ILogger<ShiftService> _logger;
 
     private const int NotesMaxLength = 2000;
@@ -30,11 +31,13 @@ public class ShiftService : IShiftService
         IEmployeeLoanService _loans, 
         ISaleInvoiceService _invoices,
         IMoneySafeTransactionService _transactions,
+        ICommissionService commission,
         ILogger<ShiftService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
         _stock = stock;
+        _commission = commission;
         this._expenses = _expenses;
         this._loans = _loans;
         this._invoices = _invoices;
@@ -376,6 +379,15 @@ public class ShiftService : IShiftService
             return ServiceResult<bool>.Failed(validationError);
         }
 
+        var oldTechs = existing.Techs.Where(t => !t.IsDeleted).Select(t => (t.TechId, t.TechType)).OrderBy(x => x.TechId).ToList();
+        var newTechs = dto.Techs.Select(t => (t.TechId, t.TechType)).OrderBy(x => x.TechId).ToList();
+        var techsChanged = !oldTechs.SequenceEqual(newTechs);
+        if (techsChanged)
+        {
+            var locked = await _commission.CheckUnlockedAsync(id, Array.Empty<long>());
+            if (locked is not null) return ServiceResult<bool>.Failed(locked);
+        }
+
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
@@ -437,6 +449,8 @@ public class ShiftService : IShiftService
                 _logger.LogError(ex, "Concurrency error occurred while updating shift with Id {ShiftId}", id);
                 throw;
             }
+
+            if (techsChanged) await _commission.RecalculateAsync(id, Array.Empty<long>());
 
             await dbTransaction.CommitAsync();
         });
@@ -523,9 +537,12 @@ public class ShiftService : IShiftService
 
         if (shift != null)
         {
+            var shiftTech = shift.Techs.FirstOrDefault(z => z.TechType == TechType.Tech && !z.IsDeleted).TechId;
             board.PrimaryTechName = p?.TechName; board.MoneySafeId = p?.SafeId; board.MoneySafeName = p?.SafeName;
             board.OpenOrders = await _dbContext.Order
-                .Where(o => !o.IsDeleted && o.Status == OrderStatus.قيد_التنفيذ)
+                .Where(o => !o.IsDeleted && o.Status == OrderStatus.قيد_التنفيذ 
+                && o.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current && !z.IsDeleted).TechId 
+                    == shiftTech)
                 .OrderBy(o => o.Id)
                 .Select(o => new OpenOrderDto { Id = o.Id, CustomerName = o.Customer!.Name, NetTotal = o.NetTotal })
                 .ToListAsync();
