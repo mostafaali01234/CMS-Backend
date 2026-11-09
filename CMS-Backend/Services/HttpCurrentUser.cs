@@ -12,7 +12,8 @@ public class HttpCurrentUser : ICurrentUser
     public long? CurrentLogId =>
     _accessor.HttpContext?.Items["CurrentLogId"] as long?;
     public string? UserId =>
-        Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+        Principal?.FindFirstValue("UserId")   // the Identity user id we put in the JWT (sub is the e-mail)
+        ?? Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
     public string? UserName => Principal?.Identity?.Name;

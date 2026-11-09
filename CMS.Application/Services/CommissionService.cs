@@ -51,13 +51,25 @@ public class CommissionService : ICommissionService
             .AsNoTracking().ToDictionaryAsync(r => (r.ProductId, r.UnitId));
 
         // ---- what the commissions should be ----
-        var desired = new Dictionary<(long Invoice, long Product, long Employee, CommissionRole Role), (long Order, decimal Total, decimal Amount)>();
+        var desired = new Dictionary<(long Invoice, long Product, long Employee, CommissionRole Role),
+                             (long Order, decimal Total, decimal Amount, long? Source, long? Group)>();
+        // the special-commission group of each seller involved (a seller is in at most one active group)
+        var sellerIds = invoices.Where(i => i.Order?.SellerId != null).Select(i => i.Order!.SellerId).Distinct().ToList();
+        var memberships = await _db.SalesManagerGroupSeller
+            .Where(m => !m.IsDeleted && sellerIds.Contains(m.EmployeeId) && !m.Group!.IsDeleted && m.Group.Active)
+            .Select(m => new { m.EmployeeId, m.GroupId, m.Group!.ManagerId, m.Group.Percent })
+            .ToListAsync();
+        var groupBySeller = memberships.ToDictionary(m => m.EmployeeId);
+        var groupIds = memberships.Select(m => m.GroupId).Distinct().ToList();
+        var groupProducts = (await _db.SalesManagerGroupProduct
+                .Where(p => !p.IsDeleted && groupIds.Contains(p.GroupId))
+                .Select(p => new { p.GroupId, p.ProductId }).ToListAsync())
+            .Select(p => (p.GroupId, p.ProductId)).ToHashSet();
+
         var seen = new Dictionary<(long Shift, long Product), int>();     // times the product appeared in the shift so far
 
         foreach (var inv in invoices)
         {
-            var techs = inv.ShiftId.HasValue ? techsByShift.GetValueOrDefault(inv.ShiftId.Value) ?? new List<long>() : new List<long>();
-
             foreach (var g in inv.Items.Where(x => !x.IsDeleted).GroupBy(x => x.ProductId))
             {
                 int n = 1;                                             // no shift: always the first unit
@@ -67,34 +79,44 @@ public class CommissionService : ICommissionService
                     n = seen.GetValueOrDefault(k) + 1;
                     seen[k] = n;
                 }
-                if (inv.OrderId == null || unitIds.Count == 0) continue;
+                if (inv.OrderId == null) continue;
 
-                var unitId = unitIds[Math.Min(n, unitIds.Count) - 1];  // sixth and later use الخامس
-                if (!rates.TryGetValue((g.Key, unitId), out var rate)) continue;
-
-                var total = g.Sum(x => x.ProductNetTotal);
                 var orderId = inv.OrderId.Value;
+                var total = g.Sum(x => x.ProductNetTotal);
 
-                void Put(long employee, CommissionRole role, decimal amount)
+                void Put(long employee, CommissionRole role, decimal amount, long? source = null, long? group = null)
                 {
-                    if (amount > 0) desired[(inv.Id, g.Key, employee, role)] = (orderId, total, amount);
+                    if (amount > 0) desired[(inv.Id, g.Key, employee, role)] = (orderId, total, amount, source, group);
                 }
 
-                // techs: primary = tech_comm, then assistant 1..3, the rest keep assistant 3
-                for (var p = 0; p < techs.Count; p++)
-                    Put(techs[p], CommissionRole.Tech,
-                        p == 0 ? rate.TechComm : p == 1 ? rate.Assistant1Comm : p == 2 ? rate.Assistant2Comm : rate.Assistant3Comm);
-
-                // seller: a percent of the product total, by the order's type
-                var percent = inv.Order?.Type switch
+                // 1) the normal commissions: they need a rate for this product and unit
+                if (unitIds.Count > 0)
                 {
-                    OrderType.جملة => rate.SalesWholesaleCommPercent,
-                    OrderType.نص_جملة => rate.SalesHalfWholesaleCommPercent,
-                    OrderType.تركيب => rate.SalesRetailCommPercent,
-                    _ => 0m
-                };
-                if (inv.Order?.SellerId is long seller)
-                    Put(seller, CommissionRole.Sales, Math.Round(total * percent / 100m, 2));
+                    var unitId = unitIds[Math.Min(n, unitIds.Count) - 1];
+                    if (rates.TryGetValue((g.Key, unitId), out var rate))
+                    {
+                        var techs = inv.ShiftId.HasValue ? techsByShift.GetValueOrDefault(inv.ShiftId.Value) ?? new List<long>() : new List<long>();
+                        for (var p = 0; p < techs.Count; p++)
+                            Put(techs[p], CommissionRole.Tech,
+                                p == 0 ? rate.TechComm : p == 1 ? rate.Assistant1Comm : p == 2 ? rate.Assistant2Comm : rate.Assistant3Comm);
+
+                        var percent = inv.Order?.Type switch
+                        {
+                            OrderType.جملة => rate.SalesWholesaleCommPercent,
+                            OrderType.نص_جملة => rate.SalesHalfWholesaleCommPercent,
+                            OrderType.تركيب => rate.SalesRetailCommPercent,
+                            _ => 0m
+                        };
+                        if (inv.Order?.SellerId is long seller)
+                            Put(seller, CommissionRole.Sales, Math.Round(total * percent / 100m, 2));
+                    }
+                }
+
+                // 2) the special commission: the manager's percent of this product's total, for the group's products only
+                if (inv.Order?.SellerId is long sid
+                    && groupBySeller.TryGetValue(sid, out var grp)
+                    && groupProducts.Contains((grp.GroupId, g.Key)))
+                    Put(grp.ManagerId, CommissionRole.Manager, Math.Round(total * grp.Percent / 100m, 2), sid, grp.GroupId);
             }
         }
 
@@ -109,6 +131,7 @@ public class CommissionService : ICommissionService
             if (desired.Remove((c.InvoiceId, c.ProductId, c.EmployeeId, c.EmployeeRole), out var d))
             {
                 c.OrderId = d.Order; c.ProductTotal = d.Total; c.Amount = d.Amount;
+                c.SourceEmployeeId = d.Source; c.ManagerGroupId = d.Group;     
             }
             else if (c.Extra_Amount != 0) c.Amount = 0;                // keep the admin's extra amount
             else { c.IsDeleted = true; c.DeletedAtUtc = DateTime.UtcNow; }
@@ -124,7 +147,9 @@ public class CommissionService : ICommissionService
                 OrderId = d.Order,
                 ProductTotal = d.Total,
                 Amount = d.Amount,
-                Status = CommissionStatus.Pending_Payment
+                Status = CommissionStatus.Pending_Payment,
+                SourceEmployeeId = d.Source,
+                ManagerGroupId = d.Group             // new
             });
 
         await _db.SaveChangesAsync();

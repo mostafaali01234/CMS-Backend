@@ -68,7 +68,7 @@ builder.Services.AddAuthentication(options => {
     };
 });
 builder.Services.AddAuthorization(options => {
-    options.AddPolicy("DepartmentPolicy", 
+    options.AddPolicy("DepartmentPolicy",
         policy => policy.RequireClaim("Department"));
 });
 
@@ -143,8 +143,13 @@ builder.Services.AddScoped<IUserLookup, UserLookup>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<ICommissionService, CommissionService>();
+builder.Services.AddScoped<ISalesManagerGroupService, SalesManagerGroupService>();
 
 builder.Services.AddCorrelationIdManager();
+
+// Activity-log writes happen off the request path (see ApiActivityLogMiddleware)
+builder.Services.AddSingleton<ActivityLogQueue>();
+builder.Services.AddHostedService<ActivityLogWriter>();
 
 builder.Services.AddCors(options =>
 {
@@ -157,9 +162,21 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sql => sql.MigrationsAssembly("CMS.Infrastructure"))
-        //sql => sql.EnableRetryOnFailure())
+        sql => sql.MigrationsAssembly("CMS.Infrastructure")
+                  // Avoids the cartesian explosion of multi-collection .Include() queries
+                  // (invoices include items + payments + returns at once).
+                  .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
+    //sql => sql.EnableRetryOnFailure())
     .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+builder.Services.AddDbContextFactory<AppDbContext>((sp, options) =>
+options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.MigrationsAssembly("CMS.Infrastructure")
+                  .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
+    //sql => sql.EnableRetryOnFailure())
+    .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>())
+,
+    ServiceLifetime.Scoped);
 builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("JwtConfig"));
 
 builder.Services.AddControllers()
@@ -195,16 +212,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("AngularDev");  
+app.UseCors("AngularDev");
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
+// Correlation id first so it is already set when the activity log middleware runs
+app.AddCorrelationIdMiddleware();
+
 app.UseMiddleware<ApiActivityLogMiddleware>();
 
 app.MapControllers();
-
-app.AddCorrelationIdMiddleware();
 
 app.Run();

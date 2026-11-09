@@ -52,13 +52,14 @@ namespace CMS.Domain.Models
 
         [Column(name: "withdrawn_at")]
         public DateTime? WithdrawnAt { get; set; }
+        [Column(name: "payroll_id")] public long? PayrollId { get; set; }
+        [ForeignKey(nameof(PayrollId))] public virtual EmployeePayroll? Payroll { get; set; }
 
-        //[Column(name: "payroll_id")]
-        //public long? PayrollId { get; set; }
-        //[ForeignKey(nameof(PayrollId))]
-        //public virtual EmployeePayroll? Payroll { get; set; }
+        [Column(name: "source_employee_id")]      // for Manager rows: the seller whose sale produced it
+        public long? SourceEmployeeId { get; set; }
 
-
+        [Column(name: "manager_group_id")]
+        public long? ManagerGroupId { get; set; }
 
 
         public DateTime CreatedAtUtc { get; set; }

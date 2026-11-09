@@ -42,7 +42,7 @@ public class AuthService : IAuthService
 
         // The original ignored this result, so a missing "Sales" role silently left a role-less account.
         #region AddEmployee
-        _empService.CreateAsync(new Domain.Models.Employee
+        await _empService.CreateAsync(new Domain.Models.Employee
         {
             UserId = user.Id,
             Name = dto.UserName,
@@ -56,8 +56,8 @@ public class AuthService : IAuthService
             MartialStatus = Domain.Enums.MartialStatus.اعزب,
             Active = true,
             AdditionalAddress = "",
-            
-        }).Wait();
+
+        });
         #endregion
 
         var roleResult = await _userManager.AddToRoleAsync(user, DefaultRole);

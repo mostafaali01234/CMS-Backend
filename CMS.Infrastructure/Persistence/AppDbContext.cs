@@ -24,6 +24,9 @@ namespace CMS.Infrastructure.Persistence
         public  DbSet<EmployeeCommission> EmployeeCommission { get; set; }
         public  DbSet<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; set; }
         public  DbSet<EmployeeSpecialCommission> EmployeeSpecialCommission { get; set; }
+        public  DbSet<SalesManagerGroup> SalesManagerGroup { get; set; }
+        public  DbSet<SalesManagerGroupSeller> SalesManagerGroupSeller { get; set; }
+        public  DbSet<SalesManagerGroupProduct> SalesManagerGroupProduct { get; set; }
         public  DbSet<CountryState> CountryState { get; set; }
         public  DbSet<City> City { get; set; }
         public  DbSet<Product> Product { get; set; }
@@ -367,6 +370,20 @@ namespace CMS.Infrastructure.Persistence
             {
                 e.HasOne(x => x.Tech).WithMany().HasForeignKey(x => x.TechId).OnDelete(DeleteBehavior.Restrict);
             });
+
+            // one active group per manager, and a seller belongs to one active group only
+            modelBuilder.Entity<SalesManagerGroup>().HasIndex(x => x.ManagerId).IsUnique().HasFilter("[IsDeleted] = 0");
+            modelBuilder.Entity<SalesManagerGroupSeller>().HasIndex(x => x.EmployeeId).IsUnique().HasFilter("[IsDeleted] = 0");
+            modelBuilder.Entity<SalesManagerGroupProduct>().HasIndex(x => new { x.GroupId, x.ProductId }).IsUnique().HasFilter("[IsDeleted] = 0");
+
+            // avoid SQL Server "multiple cascade paths"
+            modelBuilder.Entity<SalesManagerGroup>().HasOne(x => x.Manager).WithMany().HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<SalesManagerGroupSeller>().HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<SalesManagerGroupProduct>().HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<EmployeePayrollAdjustment>().HasOne(x => x.Payroll).WithMany().HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<EmployeeLoanInstallment>().HasOne(x => x.Payroll).WithMany().HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
+
         }
     }
 }

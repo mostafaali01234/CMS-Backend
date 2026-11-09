@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace CMS.Infrastructure.Helpers
@@ -40,6 +41,41 @@ namespace CMS.Infrastructure.Helpers
             {
                 // Not JSON (plain text, empty, malformed) — leave as-is.
                 return json;
+            }
+        }
+
+        // ---- Cheap masking for log storage -------------------------------------
+        // Works on the already-truncated text, so cost is bounded, original
+        // formatting/Arabic text is kept, and it still masks when truncation
+        // has cut the JSON in half (which JsonNode.Parse could not handle).
+        private static readonly string FieldAlternation =
+            string.Join("|", DefaultSensitiveFields.Select(Regex.Escape));
+
+        private static readonly Regex JsonFieldRegex = new(
+            "(\"(?:" + FieldAlternation + ")\"\\s*:\\s*)(?:\"(?:[^\"\\\\]|\\\\.)*\"?|[^,}\\]\\s]+)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(200));
+
+        private static readonly Regex FormFieldRegex = new(
+            "(?<=^|&)((?:" + FieldAlternation + ")=)[^&]*",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(200));
+
+        /// <summary>Truncates to <paramref name="maxChars"/> first, then masks sensitive fields.</summary>
+        public static string MaskForLog(string? text, int maxChars)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            if (text.Length > maxChars) text = text[..maxChars];
+
+            try
+            {
+                text = JsonFieldRegex.Replace(text, "$1\"" + MaskValue + "\"");
+                text = FormFieldRegex.Replace(text, "$1" + MaskValue);
+                return text;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return "[body omitted: could not be safely masked]";
             }
         }
 

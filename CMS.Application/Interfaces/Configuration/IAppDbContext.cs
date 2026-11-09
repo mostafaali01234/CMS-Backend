@@ -18,6 +18,9 @@ public interface IAppDbContext
     DbSet<EmployeeCommission> EmployeeCommission { get; }
     DbSet<EmployeeSpecialCommission> EmployeeSpecialCommission { get; }
     DbSet<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; }
+    DbSet<SalesManagerGroup> SalesManagerGroup { get; }
+    DbSet<SalesManagerGroupSeller> SalesManagerGroupSeller { get; }
+    DbSet<SalesManagerGroupProduct> SalesManagerGroupProduct { get; }
     DbSet<EmployeePayroll> EmployeePayroll { get; }
 
     // Geography

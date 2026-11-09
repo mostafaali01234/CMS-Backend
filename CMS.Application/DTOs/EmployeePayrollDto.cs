@@ -42,6 +42,9 @@ namespace CMS.Domain.DTOs
         [JsonPropertyName("lunch_total")]
         public decimal LunchTotal { get; set; }
 
+        [JsonPropertyName("manager_commission_total")] 
+        public decimal ManagerCommissionTotal { get; set; }
+
         [JsonPropertyName("net_total")]
         public decimal NetTotal { get; set; }
 

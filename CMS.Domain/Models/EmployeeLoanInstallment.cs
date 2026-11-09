@@ -34,6 +34,9 @@ namespace CMS.Domain.Models
         [ForeignKey(nameof(DeductionId))]
         public virtual EmployeePayrollAdjustment? Deduction { get; set; }
 
+        [Column(name: "payroll_id")] public long? PayrollId { get; set; }
+        [ForeignKey(nameof(PayrollId))] public virtual EmployeePayroll? Payroll { get; set; }
+
 
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }

@@ -1,12 +1,15 @@
 ﻿// Services/EmployeePayrollService.cs
+using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Application.Interfaces;
+using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.DTOs;
 using CMS.Domain.Enums;
 using CMS.Domain.Models;
-using CMS.Application.Interfaces.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace CMS.Application.Services;
 
@@ -38,6 +41,7 @@ public class EmployeePayrollService : IEmployeePayrollService
             LoansTotal = p.LoansTotal,
             BonusTotal = p.BonusTotal,
             DeductionsTotal = p.DeductionsTotal,
+            ManagerCommissionTotal = p.ManagerCommissionTotal,
             LunchTotal = p.LunchTotal,
             NetTotal = p.NetTotal,
             Status = p.Status,
@@ -70,18 +74,10 @@ public class EmployeePayrollService : IEmployeePayrollService
     // numbers representing amounts subtracted from pay (loan installment, deductions,
     // and lunch cost recovered from the employee). If LunchTotal is actually an allowance
     // ADDED to pay rather than deducted, this sign needs flipping.
-    private decimal ComputeNetTotal(EmployeePayrollDto dto)
-    {
-        return Math.Round(
-            dto.BaseSalary
-            + dto.SalesCommissionTotal
-            + dto.TechCommissionTotal
-            + dto.BonusTotal
-            - dto.LoansTotal
-            - dto.DeductionsTotal
-            - dto.LunchTotal,
-            2);
-    }
+    private decimal ComputeNetTotal(EmployeePayrollDto dto) => 
+        Math.Round(
+            dto.BaseSalary + dto.SalesCommissionTotal + dto.TechCommissionTotal + dto.ManagerCommissionTotal
+            + dto.BonusTotal + dto.LunchTotal - dto.LoansTotal - dto.DeductionsTotal, 2);
 
     // Centralized validation used by both Create and Update.
     private async Task<string?> ValidateAsync(EmployeePayrollDto dto, bool isUpdate, long? currentId = null)
@@ -274,6 +270,7 @@ public class EmployeePayrollService : IEmployeePayrollService
             LoansTotal = dto.LoansTotal,
             BonusTotal = dto.BonusTotal,
             DeductionsTotal = dto.DeductionsTotal,
+            ManagerCommissionTotal = dto.ManagerCommissionTotal,
             LunchTotal = dto.LunchTotal,
             NetTotal = dto.NetTotal,
             Status = dto.Status,
@@ -330,6 +327,7 @@ public class EmployeePayrollService : IEmployeePayrollService
         existing.LoansTotal = dto.LoansTotal;
         existing.BonusTotal = dto.BonusTotal;
         existing.DeductionsTotal = dto.DeductionsTotal;
+        existing.ManagerCommissionTotal = dto.ManagerCommissionTotal;   
         existing.LunchTotal = dto.LunchTotal;
         existing.NetTotal = dto.NetTotal;
         existing.Status = dto.Status;
@@ -355,18 +353,374 @@ public class EmployeePayrollService : IEmployeePayrollService
     public async Task<ServiceResult<bool>> DeleteAsync(long id)
     {
         var entity = await _dbContext.EmployeePayroll.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
-        if (entity is null)
-            return ServiceResult<bool>.NotFound("Payroll record not found");
+        if (entity is null) return ServiceResult<bool>.NotFound("Payroll record not found");
+        if (entity.WithdrawnAt.HasValue) return ServiceResult<bool>.Failed("This payroll has already been withdrawn and cannot be deleted");
 
-        if (entity.WithdrawnAt.HasValue)
-            return ServiceResult<bool>.Failed("This payroll has already been withdrawn and cannot be deleted");
+        foreach (var c in await _dbContext.EmployeeCommission.Where(c => c.PayrollId == id && !c.IsDeleted).ToListAsync())
+        {
+            c.PayrollId = null; c.WithdrawnAt = null;
+            c.Status = c.PaidAt != null ? CommissionStatus.Invoice_Paid : CommissionStatus.Pending_Payment;
+        }
+        foreach (var a in await _dbContext.EmployeePayrollAdjustment.Where(a => a.PayrollId == id).ToListAsync())
+            a.PayrollId = null;
 
         entity.IsDeleted = true;
         entity.DeletedAtUtc = DateTime.UtcNow;
-
         await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Payroll with Id {PayrollId} soft-deleted successfully", id);
         return ServiceResult<bool>.Ok(true);
     }
+
+    private static decimal R(decimal v) => Math.Round(v, 2);
+
+    private async Task<(PayrollPreviewDto? Dto, string? Error)> BuildAsync(long employeeId, int month, int year)
+    {
+        if (employeeId <= 0) return (null, "EmployeeId is required");
+        if (month < 1 || month > 12) return (null, "Month must be between 1 and 12");
+        if (year < 2000 || year > 2100) return (null, "Year is not valid");
+
+        var emp = await _dbContext.Employee.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsDeleted);
+        if (emp is null) return (null, $"Employee with Id {employeeId} was not found");
+
+        var start = new DateTime(year, month, 1);
+        var next = start.AddMonths(1);
+
+        // an already approved payroll for this month
+        var existing = await WithIncludes(_dbContext.EmployeePayroll.Where(p =>
+                !p.IsDeleted && p.EmployeeId == employeeId && p.Month == month && p.Year == year))
+            .AsNoTracking().FirstOrDefaultAsync();
+        var pid = existing?.Id ?? 0;
+        var locked = existing != null;
+
+        // ---- commissions: an approved payroll shows its own rows;
+        //      otherwise the commissions whose invoice was fully paid in this month ----
+        var cq = _dbContext.EmployeeCommission.Where(c => !c.IsDeleted && c.EmployeeId == employeeId);
+        cq = locked
+            ? cq.Where(c => c.PayrollId == pid)
+            : cq.Where(c => c.Status == CommissionStatus.Invoice_Paid && c.PaidAt >= start && c.PaidAt < next);
+
+        var comms = await cq
+            .Include(c => c.Invoice).ThenInclude(i => i!.Customer)
+            .Include(c => c.Invoice).ThenInclude(i => i!.Order).ThenInclude(o => o!.Seller)
+            .Include(c => c.Product)
+            .AsNoTracking()
+            .OrderBy(c => c.PaidAt).ThenBy(c => c.Id)
+            .ToListAsync();
+
+        // ---- additions and deductions (the loan-installment type is excluded:
+        //      installments come from the loans below) ----
+        var aq = _dbContext.EmployeePayrollAdjustment.Where(a =>
+            !a.IsDeleted && a.EmployeeId == employeeId && a.Type != PayrollAdjustmentType.LoanInstallment);
+        aq = locked
+            ? aq.Where(a => a.PayrollId == pid)
+            : aq.Where(a => a.PayrollId == null && a.OperationDate >= start && a.OperationDate < next);
+
+        var adjs = await aq.Include(a => a.ApprovedBy).AsNoTracking()
+            .OrderBy(a => a.OperationDate).ThenBy(a => a.Id).ToListAsync();
+
+        // ---- loans: pending installments due in the month, or the ones this payroll deducted ----
+        var iq = _dbContext.EmployeeLoan
+            .Where(l => !l.IsDeleted && l.EmployeeId == employeeId)
+            .SelectMany(l => l.Installments, (l, i) => new { l, i });
+        // if EmployeeLoanInstallment has IsDeleted, add: iq = iq.Where(x => !x.i.IsDeleted);
+        iq = iq.Where(x => !x.i.IsDeleted);
+        iq = locked
+            ? iq.Where(x => x.i.PayrollId == pid)
+            : iq.Where(x => x.i.Status == InstallmentStatus.Pending && x.i.DueDate >= start && x.i.DueDate < next);
+
+        var loans = await iq.OrderBy(x => x.i.DueDate).ThenBy(x => x.i.Id)
+            .Select(x => new PayrollLoanRowDto
+            {
+                Id = x.i.Id,
+                LoanId = x.l.Id,
+                InstallmentNumber = x.i.InstallmentNumber,
+                DueDate = x.i.DueDate,
+                Amount = x.i.Amount,
+                Notes = x.l.Notes
+            }).ToListAsync();
+        loans.AddRange(await _dbContext.EmployeeLoan
+                                .Where(l => !l.IsDeleted && l.EmployeeId == employeeId && l.InstallmentCount == 0 && l.StartDate >= start && l.StartDate < next)
+                                .Select(x => new PayrollLoanRowDto
+                                {
+                                    Id = x.Id,
+                                    LoanId = x.Id,
+                                    InstallmentNumber = 0,
+                                    DueDate = x.StartDate,
+                                    Amount = x.Amount,
+                                    Notes = x.Notes
+                                }).ToListAsync());
+
+        // ---- lunch: the shifts this employee was in during the month ----
+        var lunchShifts = await _dbContext.ShiftTech
+            .Where(t => !t.IsDeleted && t.TechId == employeeId
+                     && !t.Shift!.IsDeleted && t.Shift.Date >= start && t.Shift.Date < next)
+            .Select(t => t.ShiftId).Distinct().CountAsync();
+
+        // ---- commissions still waiting for their invoice to be paid (shown for information) ----
+        var pending = await _dbContext.EmployeeCommission
+            .Where(c => !c.IsDeleted && c.EmployeeId == employeeId && c.Status == CommissionStatus.Pending_Payment)
+            .SumAsync(c => (decimal?)(c.Amount + c.Extra_Amount)) ?? 0;
+
+        decimal Sum(CommissionRole r) => R(comms.Where(c => c.EmployeeRole == r).Sum(c => c.Amount + c.Extra_Amount));
+        decimal Adj(PayrollAdjustmentKind k) => R(adjs.Where(a => a.Kind == k).Sum(a => a.Amount));
+
+        var dto = new PayrollPreviewDto
+        {
+            EmployeeId = employeeId,
+            EmployeeName = emp.Name,
+            Month = month,
+            Year = year,
+            LunchAmount = emp.LunchAmount,
+            LunchShifts = lunchShifts,
+            PendingCommissionTotal = R(pending),
+            ExistingPayroll = existing == null ? null : ToDto(existing),
+            Loans = loans,
+
+            // total of the invoices behind the listed commissions, each invoice counted once
+            InvoicesTotal = R(comms.Where(c => c.Invoice != null)
+                .GroupBy(c => c.InvoiceId).Sum(g => g.First().Invoice!.NetTotal)),
+
+            Commissions = comms.Select(c => new PayrollCommissionRowDto
+            {
+                Id = c.Id,
+                Role = c.EmployeeRole.ToString(),
+                OrderId = c.OrderId,
+                InvoiceId = c.InvoiceId,
+                InvoiceNumber = c.Invoice?.Number ?? 0,
+                OrderType = c.Invoice?.Order?.Type.ToString() ?? "",
+                CustomerName = c.Invoice?.Customer?.Name ?? "",
+                SellerName = c.Invoice?.Order?.Seller?.Name ?? "",
+                ProductName = c.Product?.Name ?? "",
+                ProductTotal = c.ProductTotal,
+                Amount = c.Amount,
+                ExtraAmount = c.Extra_Amount,
+                Total = c.Amount + c.Extra_Amount,
+                PaidAt = c.PaidAt
+            }).ToList(),
+
+            Adjustments = adjs.Select(a => new EmployeeAdjustmentDto
+            {
+                Id = a.Id,
+                EmployeeId = a.EmployeeId,
+                OperationDate = a.OperationDate,
+                Kind = a.Kind,
+                Type = a.Type,
+                Amount = a.Amount,
+                Reason = a.Reason,
+                ApprovedById = a.ApprovedById,
+                ApprovedByName = a.ApprovedBy?.Name ?? ""
+            }).ToList(),
+        };
+
+        if (existing != null)
+        {
+            // an approved payroll keeps the figures it was approved with
+            dto.BaseSalary = existing.BaseSalary;
+            dto.SalesCommissionTotal = existing.SalesCommissionTotal;
+            dto.TechCommissionTotal = existing.TechCommissionTotal;
+            dto.ManagerCommissionTotal = existing.ManagerCommissionTotal;
+            dto.BonusTotal = existing.BonusTotal;
+            dto.DeductionsTotal = existing.DeductionsTotal;
+            dto.LoansTotal = existing.LoansTotal;
+            dto.LunchTotal = existing.LunchTotal;
+            dto.NetTotal = existing.NetTotal;
+        }
+        else
+        {
+            dto.BaseSalary = R(emp.Salary);
+            dto.SalesCommissionTotal = Sum(CommissionRole.Sales);
+            dto.TechCommissionTotal = Sum(CommissionRole.Tech);
+            dto.ManagerCommissionTotal = Sum(CommissionRole.Manager);
+            dto.BonusTotal = Adj(PayrollAdjustmentKind.Addition);
+            dto.DeductionsTotal = Adj(PayrollAdjustmentKind.Deduction);
+            dto.LoansTotal = R(loans.Sum(l => l.Amount));
+            dto.LunchTotal = R(lunchShifts * emp.LunchAmount);
+            dto.NetTotal = ComputeNetTotal(new EmployeePayrollDto
+            {
+                BaseSalary = dto.BaseSalary,
+                SalesCommissionTotal = dto.SalesCommissionTotal,
+                TechCommissionTotal = dto.TechCommissionTotal,
+                ManagerCommissionTotal = dto.ManagerCommissionTotal,
+                BonusTotal = dto.BonusTotal,
+                DeductionsTotal = dto.DeductionsTotal,
+                LoansTotal = dto.LoansTotal,
+                LunchTotal = dto.LunchTotal
+            });
+        }
+
+        return (dto, null);
+    }
+
+    public async Task<ServiceResult<PayrollPreviewDto>> PreviewAsync(long employeeId, int month, int year)
+    {
+        var (dto, error) = await BuildAsync(employeeId, month, year);
+        return error is not null ? ServiceResult<PayrollPreviewDto>.Failed(error) : ServiceResult<PayrollPreviewDto>.Ok(dto!);
+    }
+
+    public async Task<ServiceResult<EmployeePayrollDto>> ReviewAsync(PayrollReviewRequestDto req)
+    {
+        if (req is null) return ServiceResult<EmployeePayrollDto>.Failed("Payload is required");
+        if (req.RevisedById <= 0 || !await _dbContext.Employee.AnyAsync(e => e.Id == req.RevisedById && !e.IsDeleted))
+            return ServiceResult<EmployeePayrollDto>.Failed("Reviser (Employee) was not found");
+
+        var (p, error) = await BuildAsync(req.EmployeeId, req.Month, req.Year);
+        if (error is not null) return ServiceResult<EmployeePayrollDto>.Failed(error);
+        if (p!.ExistingPayroll != null)
+            return ServiceResult<EmployeePayrollDto>.Failed($"A payroll for {req.Month}/{req.Year} was already approved for this employee");
+
+        var now = DateTime.UtcNow;
+        var payroll = new EmployeePayroll
+        {
+            EmployeeId = p.EmployeeId,
+            Month = p.Month,
+            Year = p.Year,
+            BaseSalary = p.BaseSalary,
+            SalesCommissionTotal = p.SalesCommissionTotal,
+            TechCommissionTotal = p.TechCommissionTotal,
+            ManagerCommissionTotal = p.ManagerCommissionTotal,
+            BonusTotal = p.BonusTotal,
+            DeductionsTotal = p.DeductionsTotal,
+            LoansTotal = p.LoansTotal,
+            LunchTotal = p.LunchTotal,
+            NetTotal = p.NetTotal,
+            Status = PayrollStatus.Revised,
+            RevisedAt = now,
+            RevisedById = req.RevisedById
+        };
+        _dbContext.EmployeePayroll.Add(payroll);
+
+        var cIds = p.Commissions.Select(c => c.Id).ToList();
+        foreach (var c in await _dbContext.EmployeeCommission.Where(c => cIds.Contains(c.Id)).ToListAsync())
+        { c.Status = CommissionStatus.Invoice_Paid; c.WithdrawnAt = now; c.Payroll = payroll; }
+
+        var aIds = p.Adjustments.Select(a => a.Id).ToList();
+        foreach (var a in await _dbContext.EmployeePayrollAdjustment.Where(a => aIds.Contains(a.Id)).ToListAsync())
+            a.Payroll = payroll;
+
+        await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("Payroll {PayrollId} approved for employee {EmployeeId} ({Month}/{Year})", payroll.Id, payroll.EmployeeId, payroll.Month, payroll.Year);
+
+        var created = await WithIncludes(_dbContext.EmployeePayroll).AsNoTracking().FirstAsync(x => x.Id == payroll.Id);
+        return ServiceResult<EmployeePayrollDto>.Ok(ToDto(created));
+    }
+
+    public async Task<ServiceResult<bool>> WithdrawAsync(long id, PayrollWithdrawRequestDto req)
+    {
+        var p = await _dbContext.EmployeePayroll.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (p is null) return ServiceResult<bool>.NotFound("Payroll record not found");
+        if (p.WithdrawnAt.HasValue) return ServiceResult<bool>.Failed("This payroll has already been withdrawn");
+        if (p.NetTotal <= 0) return ServiceResult<bool>.Failed("The net total must be greater than zero to withdraw");
+
+        var safe = await _dbContext.MoneySafe.AsNoTracking().FirstOrDefaultAsync(m => m.Id == req.MoneySafeId && !m.IsDeleted);
+        if (safe is null) return ServiceResult<bool>.Failed("Money safe was not found");
+        if (!safe.Active) return ServiceResult<bool>.Failed($"Money safe '{safe.Name}' is not active");
+        if (!await _dbContext.Employee.AnyAsync(e => e.Id == req.WithdrawnById && !e.IsDeleted))
+            return ServiceResult<bool>.Failed("Withdrawer (Employee) was not found");
+
+        p.Status = PayrollStatus.Withdrawn;
+        p.MoneySafeId = req.MoneySafeId;
+        p.WithdrawnAt = (req.Date ?? DateTime.UtcNow).Date == DateTime.UtcNow.Date ? DateTime.UtcNow : req.Date!.Value;
+        p.WithdrawnById = req.WithdrawnById;
+        await _dbContext.SaveChangesAsync();
+        return ServiceResult<bool>.Ok(true);
+    }
+
+    public async Task<ServiceResult<PagedResult<EmployeePayrollDto>>> GetPagedAsync(PayrollFilterDto f)
+    {
+        var q = _dbContext.EmployeePayroll.Where(p => !p.IsDeleted);
+        if (f.EmployeeId.HasValue) q = q.Where(p => p.EmployeeId == f.EmployeeId.Value);
+        if (f.Month.HasValue) q = q.Where(p => p.Month == f.Month.Value);
+        if (f.Year.HasValue) q = q.Where(p => p.Year == f.Year.Value);
+        if (f.Status.HasValue) q = q.Where(p => p.Status == f.Status.Value);
+
+        var page = await q.OrderByDescending(p => p.Year).ThenByDescending(p => p.Month).ThenByDescending(p => p.Id)
+            .Select(p => new EmployeePayrollDto
+            {
+                Id = p.Id,
+                EmployeeId = p.EmployeeId,
+                EmployeeName = p.Employee!.Name,
+                Month = p.Month,
+                Year = p.Year,
+                BaseSalary = p.BaseSalary,
+                SalesCommissionTotal = p.SalesCommissionTotal,
+                TechCommissionTotal = p.TechCommissionTotal,
+                ManagerCommissionTotal = p.ManagerCommissionTotal,
+                LoansTotal = p.LoansTotal,
+                BonusTotal = p.BonusTotal,
+                DeductionsTotal = p.DeductionsTotal,
+                LunchTotal = p.LunchTotal,
+                NetTotal = p.NetTotal,
+                Status = p.Status,
+                MoneySafeId = p.MoneySafeId,
+                MoneySafeName = p.MoneySafe == null ? "" : p.MoneySafe.Name,
+                WithdrawnAt = p.WithdrawnAt
+            }).ToPagedAsync(f);
+
+        return ServiceResult<PagedResult<EmployeePayrollDto>>.Ok(page);
+    }
+
+    public async Task<ServiceResult<bool>> SetCommissionExtraAsync(long commissionId, decimal extra)
+    {
+        var c = await _dbContext.EmployeeCommission.FirstOrDefaultAsync(x => x.Id == commissionId && !x.IsDeleted);
+        if (c is null) return ServiceResult<bool>.NotFound("Commission not found");
+        if (c.Status == CommissionStatus.Withdrawn) return ServiceResult<bool>.Failed("This commission was already approved in a payroll");
+        if (c.Amount + extra < 0) return ServiceResult<bool>.Failed("The extra amount cannot make the commission negative");
+        c.Extra_Amount = extra;
+        await _dbContext.SaveChangesAsync();
+        return ServiceResult<bool>.Ok(true);
+    }
+    public async Task<ServiceResult<EmployeeAdjustmentDto>> AddAdjustmentAsync(EmployeeAdjustmentDto dto)
+    {
+        if (dto is null) return ServiceResult<EmployeeAdjustmentDto>.Failed("Payload is required");
+        if (!Enum.IsDefined(typeof(PayrollAdjustmentKind), dto.Kind)) return ServiceResult<EmployeeAdjustmentDto>.Failed("Kind is not valid");
+        if (!Enum.IsDefined(typeof(PayrollAdjustmentType), dto.Type)) return ServiceResult<EmployeeAdjustmentDto>.Failed("Type is not valid");
+        if (dto.Type == PayrollAdjustmentType.LoanInstallment)
+            return ServiceResult<EmployeeAdjustmentDto>.Failed("Loan installments are deducted automatically from the loans");
+
+        // the type must match the kind: deductions 2..4, additions 20..23, Other for both
+        var t = (int)dto.Type;
+        var ok = dto.Type == PayrollAdjustmentType.Other
+              || (dto.Kind == PayrollAdjustmentKind.Deduction && t is >= 2 and <= 4)
+              || (dto.Kind == PayrollAdjustmentKind.Addition && t is >= 20 and <= 23);
+        if (!ok) return ServiceResult<EmployeeAdjustmentDto>.Failed("The type does not match the kind");
+
+        if (dto.Amount <= 0) return ServiceResult<EmployeeAdjustmentDto>.Failed("Amount must be greater than zero");
+        if (dto.OperationDate == default) return ServiceResult<EmployeeAdjustmentDto>.Failed("Date is required");
+        if (dto.Reason?.Length > 2000) return ServiceResult<EmployeeAdjustmentDto>.Failed("Reason cannot exceed 2000 characters");
+        if (!await _dbContext.Employee.AnyAsync(e => e.Id == dto.EmployeeId && !e.IsDeleted))
+            return ServiceResult<EmployeeAdjustmentDto>.Failed("Employee was not found");
+        if (dto.ApprovedById is null || !await _dbContext.Employee.AnyAsync(e => e.Id == dto.ApprovedById && !e.IsDeleted))
+            return ServiceResult<EmployeeAdjustmentDto>.Failed("Manager (Employee) was not found");
+
+        var d = dto.OperationDate.Date;
+        if (await _dbContext.EmployeePayroll.AnyAsync(p => !p.IsDeleted && p.EmployeeId == dto.EmployeeId && p.Month == d.Month && p.Year == d.Year))
+            return ServiceResult<EmployeeAdjustmentDto>.Failed("A payroll for this month was already approved. Delete it first");
+
+        var e = new EmployeePayrollAdjustment
+        {
+            EmployeeId = dto.EmployeeId,
+            OperationDate = d,
+            Kind = dto.Kind,
+            Type = dto.Type,
+            Amount = dto.Amount,
+            Reason = dto.Reason ?? "",
+            ApprovedById = dto.ApprovedById
+        };
+        _dbContext.EmployeePayrollAdjustment.Add(e);
+        await _dbContext.SaveChangesAsync();
+        dto.Id = e.Id;
+        return ServiceResult<EmployeeAdjustmentDto>.Ok(dto);
+    }
+
+    public async Task<ServiceResult<bool>> DeleteAdjustmentAsync(long id)
+    {
+        var a = await _dbContext.EmployeePayrollAdjustment.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (a is null) return ServiceResult<bool>.NotFound("Not found");
+        if (a.PayrollId != null) return ServiceResult<bool>.Failed("This item is part of an approved payroll");
+        a.IsDeleted = true; a.DeletedAtUtc = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+        return ServiceResult<bool>.Ok(true);
+    }
+
+
 }

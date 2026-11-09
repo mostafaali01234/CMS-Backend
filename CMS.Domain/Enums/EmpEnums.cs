@@ -1,4 +1,6 @@
-﻿namespace CMS.Domain.Enums
+﻿using System.Text.Json.Serialization;
+
+namespace CMS.Domain.Enums
 {
     public enum MilitaryStatus
     {
@@ -16,7 +18,8 @@
     public enum CommissionRole
     {
         Sales,
-        Tech
+        Tech,
+        Manager
     }
     public enum CommissionStatus
     {
@@ -24,9 +27,5 @@
         Invoice_Paid,
         Withdrawn
     }
-    public enum PayrollStatus
-    {
-        Revised,
-        Withdrawn
-    }
+    [JsonConverter(typeof(JsonStringEnumConverter))] public enum PayrollStatus { Revised, Withdrawn }
 }

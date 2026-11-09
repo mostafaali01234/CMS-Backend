@@ -814,6 +814,11 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasColumnName("kids_count");
 
+                    b.Property<decimal>("LunchAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("lunch_amount");
+
                     b.Property<int>("MartialStatus")
                         .HasColumnType("int")
                         .HasColumnName("martial_status");
@@ -919,6 +924,10 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<long?>("ManagerGroupId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manager_group_id");
+
                     b.Property<long>("OrderId")
                         .HasColumnType("bigint")
                         .HasColumnName("order_id");
@@ -926,6 +935,10 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("paid_at");
+
+                    b.Property<long?>("PayrollId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_id");
 
                     b.Property<long>("ProductId")
                         .HasColumnType("bigint")
@@ -935,6 +948,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("product_total");
+
+                    b.Property<long?>("SourceEmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_employee_id");
 
                     b.Property<int>("Status")
                         .HasColumnType("int")
@@ -957,6 +974,8 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("InvoiceId");
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("PayrollId");
 
                     b.HasIndex("ProductId");
 
@@ -1085,6 +1104,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("loan_id");
 
+                    b.Property<long?>("PayrollId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_id");
+
                     b.Property<int>("Status")
                         .HasColumnType("int")
                         .HasColumnName("status");
@@ -1100,6 +1123,8 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("DeductionId");
 
                     b.HasIndex("LoanId");
+
+                    b.HasIndex("PayrollId");
 
                     b.ToTable("employee_loan_installment");
                 });
@@ -1153,6 +1178,11 @@ namespace CMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("lunch_total");
+
+                    b.Property<decimal>("ManagerCommissionTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("manager_commission_total");
 
                     b.Property<long?>("MoneySafeId")
                         .HasColumnType("bigint")
@@ -1262,6 +1292,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("operation_date");
 
+                    b.Property<long?>("PayrollId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_id");
+
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -1282,6 +1316,8 @@ namespace CMS.Infrastructure.Migrations
                     b.HasIndex("ApprovedById");
 
                     b.HasIndex("EmployeeId");
+
+                    b.HasIndex("PayrollId");
 
                     b.ToTable("employee_payroll_adjustment");
                 });
@@ -2838,6 +2874,152 @@ namespace CMS.Infrastructure.Migrations
                     b.ToTable("sale_invoice_item");
                 });
 
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit")
+                        .HasColumnName("active");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("ManagerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manager_id");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("Percent")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("percent");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManagerId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("sales_manager_group");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroupProduct", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("GroupId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("product_id");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("GroupId", "ProductId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("sales_manager_group_product");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroupSeller", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("GroupId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("sales_manager_group_seller");
+                });
+
             modelBuilder.Entity("CMS.Domain.Models.Shift", b =>
                 {
                     b.Property<long>("Id")
@@ -3791,6 +3973,10 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.EmployeePayroll", "Payroll")
+                        .WithMany()
+                        .HasForeignKey("PayrollId");
+
                     b.HasOne("CMS.Domain.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -3802,6 +3988,8 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Invoice");
 
                     b.Navigation("Order");
+
+                    b.Navigation("Payroll");
 
                     b.Navigation("Product");
                 });
@@ -3853,9 +4041,16 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.EmployeePayroll", "Payroll")
+                        .WithMany()
+                        .HasForeignKey("PayrollId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Deduction");
 
                     b.Navigation("Loan");
+
+                    b.Navigation("Payroll");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeePayroll", b =>
@@ -3899,9 +4094,16 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.EmployeePayroll", "Payroll")
+                        .WithMany()
+                        .HasForeignKey("PayrollId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("ApprovedBy");
 
                     b.Navigation("Employee");
+
+                    b.Navigation("Payroll");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeSpecialCommission", b =>
@@ -4334,6 +4536,55 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroup", b =>
+                {
+                    b.HasOne("CMS.Domain.Models.Employee", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Manager");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroupProduct", b =>
+                {
+                    b.HasOne("CMS.Domain.Models.SalesManagerGroup", "Group")
+                        .WithMany("Products")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CMS.Domain.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroupSeller", b =>
+                {
+                    b.HasOne("CMS.Domain.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CMS.Domain.Models.SalesManagerGroup", "Group")
+                        .WithMany("Sellers")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Group");
+                });
+
             modelBuilder.Entity("CMS.Domain.Models.Shift", b =>
                 {
                     b.HasOne("CMS.Domain.Models.Car", "Car")
@@ -4639,6 +4890,13 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("Returns");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.SalesManagerGroup", b =>
+                {
+                    b.Navigation("Products");
+
+                    b.Navigation("Sellers");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.Shift", b =>

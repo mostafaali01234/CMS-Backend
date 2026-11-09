@@ -42,7 +42,10 @@ namespace CMS.Domain.Models
         public decimal DeductionsTotal { get; set; }  
 
         [Column(name: "lunch_total")]
-        public decimal LunchTotal { get; set; }  
+        public decimal LunchTotal { get; set; }
+
+        [Column(name: "manager_commission_total")] 
+        public decimal ManagerCommissionTotal { get; set; }
 
         [Column(name: "net_total")]
         public decimal NetTotal { get; set; }  

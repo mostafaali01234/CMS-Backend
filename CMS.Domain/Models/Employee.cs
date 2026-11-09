@@ -29,6 +29,9 @@ namespace CMS.Domain.Models
 
         [Column(name: "salary")]
         public decimal Salary { get; set; }
+        [Column(name: "lunch_amount")] 
+        public decimal LunchAmount { get; set; }
+
 
         [Column(name: "opening_balance")]
         public decimal OpeningBalance { get; set; }

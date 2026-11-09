@@ -1,9 +1,11 @@
+using CMS.Application.DTOs;
 using CMS.Application.Interfaces;
 using CMS.Domain.DTOs;
 using CMS_Backend.Controllers.Base;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 
 namespace CMS.Api.Controllers;
 
@@ -57,4 +59,31 @@ public class EmployeePayrollController : ApiControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) =>
         ToNoContentResult(await _epService.DeleteAsync(id));
+
+    // GET api/employee-payrolls/preview?employeeId=12&month=10&year=2026
+    [HttpGet("preview")]
+    public async Task<IActionResult> Preview([FromQuery] long employeeId, [FromQuery] int month, [FromQuery] int year) =>
+        ToActionResult(await _epService.PreviewAsync(employeeId, month, year));
+
+    // GET api/employee-payrolls/paged?page=1&pageSize=20&employeeId=&month=&year=&status=Revised
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] PayrollFilterDto f) => ToActionResult(await _epService.GetPagedAsync(f));
+
+    [HttpPost("review")]
+    public async Task<IActionResult> Review([FromBody] PayrollReviewRequestDto r) => ToActionResult(await _epService.ReviewAsync(r));
+
+    [HttpPost("{id:long}/withdraw")]
+    public async Task<IActionResult> Withdraw(long id, [FromBody] PayrollWithdrawRequestDto r) => ToNoContentResult(await _epService.WithdrawAsync(id, r));
+
+    [HttpPut("commissions/{commissionId:long}/extra")]
+    public async Task<IActionResult> SetExtra(long commissionId, [FromBody] ExtraRequest r) =>
+        ToNoContentResult(await _epService.SetCommissionExtraAsync(commissionId, r.ExtraAmount));
+
+    [HttpPost("adjustments")]
+    public async Task<IActionResult> AddAdjustment([FromBody] EmployeeAdjustmentDto dto) => ToActionResult(await _epService.AddAdjustmentAsync(dto));
+
+    [HttpDelete("adjustments/{id:long}")]
+    public async Task<IActionResult> DeleteAdjustment(long id) => ToNoContentResult(await _epService.DeleteAdjustmentAsync(id));
+
+    public class ExtraRequest { [JsonPropertyName("extra_amount")] public decimal ExtraAmount { get; set; } }
 }
