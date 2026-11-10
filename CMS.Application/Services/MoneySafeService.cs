@@ -13,16 +13,19 @@ public class MoneySafeService : IMoneySafeService
 {
     private readonly IAppDbContext _dbContext;
     private readonly ILogger<MoneySafeService> _logger;
+    private readonly IMoneySafeMoveService _moves;
 
     private const int NameMaxLength = 150;
     private const int NotesMaxLength = 2000;
 
     public MoneySafeService(
         IAppDbContext dbContext,
-        ILogger<MoneySafeService> logger)
+        ILogger<MoneySafeService> logger,
+        IMoneySafeMoveService moves)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _moves = moves;
     }
 
     private MoneySafeDto ToDto(MoneySafe safe)
@@ -164,7 +167,12 @@ public class MoneySafeService : IMoneySafeService
             .AsNoTracking()
             .ToListAsync();
 
-        return ServiceResult<List<MoneySafeDto>>.Ok(safes.Select(ToDto).ToList());
+        var dtos = safes.Select(ToDto).ToList();
+        var balances = await _moves.GetBalancesAsync(dtos.Select(d => d.Id).ToList());
+        foreach (var d in dtos)
+            if (balances.TryGetValue(d.Id, out var b)) { d.Balance = b.Balance; d.BalanceCurrency = b.BalanceCurrency; }
+
+        return ServiceResult<List<MoneySafeDto>>.Ok(dtos);
     }
 
     public async Task<ServiceResult<List<MoneySafeTypeDto>>> GetAllTypesAsync()
@@ -174,7 +182,7 @@ public class MoneySafeService : IMoneySafeService
             .Select(z => new MoneySafeTypeDto
             {
                 Id = z.Id,
-                Name= z.Name,
+                Name = z.Name,
                 Cod = z.Cod
             })
             .ToListAsync();
@@ -198,7 +206,10 @@ public class MoneySafeService : IMoneySafeService
         if (safe is null)
             return ServiceResult<MoneySafeDto?>.NotFound("Money safe not found");
 
-        return ServiceResult<MoneySafeDto?>.Ok(ToDto(safe));
+        var dto = ToDto(safe);
+        var balances = await _moves.GetBalancesAsync(new[] { dto.Id });
+        if (balances.TryGetValue(dto.Id, out var b)) { dto.Balance = b.Balance; dto.BalanceCurrency = b.BalanceCurrency; }
+        return ServiceResult<MoneySafeDto?>.Ok(dto);
     }
 
     public async Task<ServiceResult<MoneySafeDto>> CreateAsync(MoneySafeDto dto)
