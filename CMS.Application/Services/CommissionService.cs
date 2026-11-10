@@ -128,6 +128,12 @@ public class CommissionService : ICommissionService
 
         foreach (var c in existing)
         {
+            // a commission that a payroll already took is never touched
+            if (c.Status == CommissionStatus.Withdrawn)
+            {
+                desired.Remove((c.InvoiceId, c.ProductId, c.EmployeeId, c.EmployeeRole), out _);
+                continue;
+            }
             if (desired.Remove((c.InvoiceId, c.ProductId, c.EmployeeId, c.EmployeeRole), out var d))
             {
                 c.OrderId = d.Order; c.ProductTotal = d.Total; c.Amount = d.Amount;

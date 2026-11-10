@@ -1,4 +1,5 @@
 ﻿// Services/EmployeePayrollService.cs
+using ClosedXML.Excel;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Helpers;
@@ -16,13 +17,16 @@ namespace CMS.Application.Services;
 public class EmployeePayrollService : IEmployeePayrollService
 {
     private readonly IAppDbContext _dbContext;
+    private readonly ICommissionService _commission;
     private readonly ILogger<EmployeePayrollService> _logger;
 
     public EmployeePayrollService(
         IAppDbContext dbContext,
+        ICommissionService commission,
         ILogger<EmployeePayrollService> logger)
     {
         _dbContext = dbContext;
+        _commission = commission;
         _logger = logger;
     }
 
@@ -722,5 +726,165 @@ public class EmployeePayrollService : IEmployeePayrollService
         return ServiceResult<bool>.Ok(true);
     }
 
+    public async Task<ServiceResult<RecalcResultDto>> RecalculateCommissionsAsync(long employeeId, int month, int year)
+    {
+        if (month < 1 || month > 12) return ServiceResult<RecalcResultDto>.Failed("Month must be between 1 and 12");
+        if (year < 2000 || year > 2100) return ServiceResult<RecalcResultDto>.Failed("Year is not valid");
+        if (!await _dbContext.Employee.AnyAsync(e => e.Id == employeeId && !e.IsDeleted))
+            return ServiceResult<RecalcResultDto>.Failed("Employee was not found");
 
+        var start = new DateTime(year, month, 1);
+        var next = start.AddMonths(1);
+
+        if (await _dbContext.EmployeePayroll.AnyAsync(p => !p.IsDeleted && p.EmployeeId == employeeId && p.Month == month && p.Year == year))
+            return ServiceResult<RecalcResultDto>.Failed("A payroll for this month was already approved. Delete it first");
+
+        // every sale invoice that can carry a commission of this employee in this month
+        var invoiceIds = new HashSet<long>();
+
+        // 1) the commissions he already has: invoice dated or paid in the month
+        invoiceIds.UnionWith(await _dbContext.EmployeeCommission
+            .Where(c => !c.IsDeleted && c.EmployeeId == employeeId
+                     && ((c.PaidAt >= start && c.PaidAt < next) || (c.Invoice!.Date >= start && c.Invoice.Date < next)))
+            .Select(c => c.InvoiceId).ToListAsync());
+
+        // 2) as a seller
+        invoiceIds.UnionWith(await _dbContext.SaleInvoice
+            .Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale && i.Date >= start && i.Date < next
+                     && i.Order!.SellerId == employeeId)
+            .Select(i => i.Id).ToListAsync());
+
+        // 3) as a manager: the invoices of the sellers in his group
+        var sellers = await _dbContext.SalesManagerGroupSeller
+            .Where(m => !m.IsDeleted && !m.Group!.IsDeleted && m.Group.ManagerId == employeeId)
+            .Select(m => m.EmployeeId).ToListAsync();
+        if (sellers.Count > 0)
+            invoiceIds.UnionWith(await _dbContext.SaleInvoice
+                .Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale && i.Date >= start && i.Date < next
+                         && sellers.Contains(i.Order!.SellerId))
+                .Select(i => i.Id).ToListAsync());
+
+        // 4) as a tech: every shift he was in this month
+        var shiftIds = (await _dbContext.ShiftTech
+            .Where(t => !t.IsDeleted && t.TechId == employeeId && !t.Shift!.IsDeleted && t.Shift.Date >= start && t.Shift.Date < next)
+            .Select(t => t.ShiftId).Distinct().ToListAsync()).ToHashSet();
+
+        var found = await _dbContext.SaleInvoice
+            .Where(i => !i.IsDeleted && invoiceIds.Contains(i.Id))
+            .Select(i => new { i.Id, i.ShiftId }).ToListAsync();
+        foreach (var i in found.Where(x => x.ShiftId.HasValue)) shiftIds.Add(i.ShiftId!.Value);
+        var looseIds = found.Where(x => !x.ShiftId.HasValue).Select(x => x.Id).ToList();
+
+        var result = new RecalcResultDto();
+
+        // a shift is recalculated as a whole, because the order of the products inside the shift matters
+        foreach (var sid in shiftIds)
+        {
+            if (await _commission.CheckUnlockedAsync(sid, Array.Empty<long>()) is not null) { result.Skipped++; continue; }
+            await _commission.RecalculateAsync(sid, Array.Empty<long>());
+            result.Shifts++;
+        }
+
+        var open = new List<long>();
+        foreach (var id in looseIds)
+        {
+            if (await _commission.CheckUnlockedAsync(null, new[] { id }) is not null) { result.Skipped++; continue; }
+            open.Add(id);
+        }
+        if (open.Count > 0) { await _commission.RecalculateAsync(null, open); result.Invoices = open.Count; }
+
+        return ServiceResult<RecalcResultDto>.Ok(result);
+    }
+
+    #region Export
+    private static string RoleAr(string r) => r switch { "Sales" => "بيع", "Tech" => "تركيب", "Manager" => "مجموعة", _ => r };
+    private static string KindAr(PayrollAdjustmentKind k) => k == PayrollAdjustmentKind.Addition ? "اضافة" : "خصم";
+    private static string TypeAr(PayrollAdjustmentType t) => t switch
+    {
+        PayrollAdjustmentType.Absence => "غياب",
+        PayrollAdjustmentType.Penalty => "جزاء",
+        PayrollAdjustmentType.Insurance => "تأمين",
+        PayrollAdjustmentType.Incentive => "حافز",
+        PayrollAdjustmentType.Bonus => "مكافأة",
+        PayrollAdjustmentType.Commission => "عمولة",
+        PayrollAdjustmentType.Overtime => "اضافي",
+        PayrollAdjustmentType.LoanInstallment => "قسط سلفة",
+        _ => "اخرى"
+    };
+
+    public async Task<ExportResult> ExportReviewAsync(long employeeId, int month, int year)
+    {
+        var (d, error) = await BuildAsync(employeeId, month, year);
+        if (error is not null) return new ExportResult(null, error, "");
+
+        var title = $"مرتب {d!.EmployeeName} - {d.Month}/{d.Year}";
+        var status = d.ExistingPayroll is null ? "مراجعة - لم يتم الاعتماد بعد"
+                   : d.ExistingPayroll.Status == PayrollStatus.Withdrawn ? "تم الصرف" : "تم الاعتماد";
+        var sub = $"الحالة: {status}   |   التاريخ: {DateTime.Now:yyyy-MM-dd HH:mm}";
+
+        using var wb = new XLWorkbook();
+
+        // ---- summary ----
+        TableExcel.AddSheet(wb, "الملخص", title, sub,
+            new List<XCol> { new("البند", 42), new("القيمة", 18, TableExcel.Money, true) },
+            new List<object?[]>
+            {
+            new object?[] { "اجمالي الاوردرات / الفواتير", d.InvoicesTotal },
+            new object?[] { "اجمالي عمولات البيع", d.SalesCommissionTotal },
+            new object?[] { "اجمالي عمولات التركيب", d.TechCommissionTotal },
+            new object?[] { "عمولة المجموعة", d.ManagerCommissionTotal },
+            new object?[] { "الراتب الاساسي", d.BaseSalary },
+            new object?[] { "الاضافات", d.BonusTotal },
+            new object?[] { "الخصومات", d.DeductionsTotal },
+            new object?[] { "السلف (اقساط الشهر)", d.LoansTotal },
+            new object?[] { $"الغدا ({d.LunchShifts} وردية × {d.LunchAmount:0.##})", d.LunchTotal },
+            new object?[] { "باقي العمولات - فواتير غير مدفوعة (للعلم فقط)", d.PendingCommissionTotal },
+            },
+            new object?[] { null, d.NetTotal }, "الاجمالي (الصافي)");
+
+        // ---- commissions ----
+        TableExcel.AddSheet(wb, "العمولات", title, "تفاصيل العمولات",
+            new List<XCol>
+            {
+            new("النوع", 10, null, true), new("الاوردر", 10, null, true), new("الفاتورة", 10, null, true),
+            new("جملة / تركيب", 14), new("العميل", 26), new("البائع", 20), new("الصنف", 30),
+            new("اجمالي الصنف", 15, TableExcel.Money), new("العمولة", 13, TableExcel.Money),
+            new("اضافي", 12, TableExcel.Money), new("المعدلة", 13, TableExcel.Money), new("تاريخ السداد", 14, TableExcel.Day, true),
+            },
+            d.Commissions.Select(c => new object?[]
+            {
+            RoleAr(c.Role), c.OrderId, c.InvoiceNumber, c.OrderType.Replace('_', ' '), c.CustomerName, c.SellerName,
+            c.ProductName, c.ProductTotal, c.Amount, c.ExtraAmount, c.Total, c.PaidAt
+            }),
+            new object?[] { null, null, null, null, null, null, null, null,
+                        d.Commissions.Sum(c => c.Amount), d.Commissions.Sum(c => c.ExtraAmount), d.Commissions.Sum(c => c.Total), null },
+            $"الاجمالي ({d.Commissions.Count} عمولة)");
+
+        // ---- additions and deductions ----
+        var net = d.Adjustments.Sum(a => a.Kind == PayrollAdjustmentKind.Addition ? a.Amount : -a.Amount);
+        TableExcel.AddSheet(wb, "الاضافات والخصومات", title, "تفاصيل الخصومات والاضافات",
+            new List<XCol>
+            {
+            new("المدير", 22), new("التاريخ", 14, TableExcel.Day, true), new("الفئة", 12, null, true),
+            new("النوع", 16), new("القيمة", 14, TableExcel.Money), new("السبب", 40),
+            },
+            d.Adjustments.Select(a => new object?[]
+                { a.ApprovedByName, a.OperationDate, KindAr(a.Kind), TypeAr(a.Type), a.Amount, a.Reason }),
+            new object?[] { null, null, null, null, net, null }, "الصافي (اضافات - خصومات)");
+
+        // ---- loans ----
+        TableExcel.AddSheet(wb, "السلف", title, "اقساط هذا الشهر",
+            new List<XCol>
+            {
+            new("السلفة", 12, null, true), new("القسط", 10, null, true), new("تاريخ الاستحقاق", 16, TableExcel.Day, true),
+            new("القيمة", 14, TableExcel.Money), new("ملاحظات", 40),
+            },
+            d.Loans.Select(l => new object?[] { l.LoanId, l.InstallmentNumber, l.DueDate, l.Amount, l.Notes }),
+            new object?[] { null, null, null, d.Loans.Sum(l => l.Amount), null }, "الاجمالي");
+
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+        return new ExportResult(ms.ToArray(), null, $"payroll-{employeeId}-{year}-{month:00}.xlsx");
+    }
+    #endregion
 }

@@ -18,10 +18,19 @@ public static class TableExcel
     private static readonly XLColor Line = XLColor.FromHtml("#BFC9D9");
 
     /// <param name="totals">same length as the columns; null cells stay empty, the first cell may hold the label</param>
+    /// 
     public static byte[] Build(string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
-                               IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
+                           IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
     {
         using var wb = new XLWorkbook();
+        AddSheet(wb, sheet, title, subtitle, cols, rows, totals, totalsLabel);
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+        return ms.ToArray();
+    }
+    public static void AddSheet(XLWorkbook wb, string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
+                            IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
+    {
         var ws = wb.AddWorksheet(sheet);
         ws.RightToLeft = true;
         ws.ShowGridLines = false;
@@ -117,10 +126,17 @@ public static class TableExcel
         ws.PageSetup.SetRowsToRepeatAtTop(headerRow, headerRow);
         ws.PageSetup.Footer.Center.AddText(XLHFPredefinedText.PageNumber, XLHFOccurrence.AllPages);
 
-        using var ms = new MemoryStream();
-        wb.SaveAs(ms);
-        return ms.ToArray();
+        //using var ms = new MemoryStream();
+        //wb.SaveAs(ms);
+        //return ms.ToArray();
     }
+
+    //public static byte[] Build(string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
+    //                           IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
+    //{
+    //    using var wb = new XLWorkbook();
+        
+    //}
 
     private static void Put(IXLCell c, object? v)
     {

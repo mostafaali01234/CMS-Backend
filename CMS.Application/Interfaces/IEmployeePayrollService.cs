@@ -1,6 +1,7 @@
 ﻿// Services/Interfaces/IEmployeePayrollService.cs
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
+using CMS.Application.Helpers;
 using CMS.Domain.DTOs;
 
 namespace CMS.Application.Interfaces;
@@ -22,4 +23,7 @@ public interface IEmployeePayrollService
     Task<ServiceResult<bool>> SetCommissionExtraAsync(long commissionId, decimal extra);
     Task<ServiceResult<EmployeeAdjustmentDto>> AddAdjustmentAsync(EmployeeAdjustmentDto dto);
     Task<ServiceResult<bool>> DeleteAdjustmentAsync(long id);
+
+    Task<ServiceResult<RecalcResultDto>> RecalculateCommissionsAsync(long employeeId, int month, int year);
+    Task<ExportResult> ExportReviewAsync(long employeeId, int month, int year);
 }

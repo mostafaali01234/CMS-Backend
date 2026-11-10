@@ -94,3 +94,16 @@ public class PayrollPreviewDto
     [JsonPropertyName("adjustments")] public List<EmployeeAdjustmentDto> Adjustments { get; set; } = new();
     [JsonPropertyName("loans")] public List<PayrollLoanRowDto> Loans { get; set; } = new();
 }
+
+public class RecalcRequestDto
+{
+    [JsonPropertyName("employee_id")] public long EmployeeId { get; set; }
+    [JsonPropertyName("month")] public int Month { get; set; }
+    [JsonPropertyName("year")] public int Year { get; set; }
+}
+public class RecalcResultDto
+{
+    [JsonPropertyName("shifts")] public int Shifts { get; set; }
+    [JsonPropertyName("invoices")] public int Invoices { get; set; }      // invoices without a shift
+    [JsonPropertyName("skipped")] public int Skipped { get; set; }        // locked by an approved payroll
+}

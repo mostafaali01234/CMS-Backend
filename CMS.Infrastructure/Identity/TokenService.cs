@@ -168,6 +168,7 @@ public class TokenService : ITokenService
         var claims = new List<Claim>
         {
             new Claim("UserId", user.Id),
+            new Claim("EmployeeId", emp?.Id.ToString() ?? ""),
             new Claim(JwtRegisteredClaimNames.Email, user.Email!),
             new Claim(JwtRegisteredClaimNames.Sub, user.Email!),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
