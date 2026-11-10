@@ -391,7 +391,7 @@ public class MoneySafeMoveService : IMoneySafeMoveService
         object?[] Line(string label, decimal egp, decimal cur) =>
             multi ? new object?[] { label, egp, cur } : new object?[] { label, egp };
 
-        TableExcel.AddSheet(wb, "الملخص", title, sub, sumCols,
+        TableExcel.FillSheet(wb, "الملخص", title, sub, sumCols,
             new List<object?[]>
             {
             Line("الرصيد الحالي", currentEgp, currentCur),
@@ -425,7 +425,7 @@ public class MoneySafeMoveService : IMoneySafeMoveService
         totals.Add(closeEgp);
         if (multi) totals.Add(closeCur);
 
-        TableExcel.AddSheet(wb, "الحركات", title, sub, cols, data, totals.ToArray(), $"الاجمالي ({lines.Count} حركة)");
+        TableExcel.FillSheet(wb, "الحركات", title, sub, cols, data, totals.ToArray(), $"الاجمالي ({lines.Count} حركة)");
 
         using var ms = new MemoryStream();
         wb.SaveAs(ms);

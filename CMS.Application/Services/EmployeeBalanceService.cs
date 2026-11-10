@@ -129,7 +129,7 @@ public class EmployeeBalanceService : IEmployeeBalanceService
 
         using var wb = new XLWorkbook();
 
-        TableExcel.AddSheet(wb, "الملخص", title, sub,
+        TableExcel.FillSheet(wb, "الملخص", title, sub,
             new List<XCol> { new("البند", 40), new("القيمة", 18, signed, true) },
             new List<object?[]>
             {
@@ -141,7 +141,7 @@ public class EmployeeBalanceService : IEmployeeBalanceService
             },
             new object?[] { null, d.ClosingBalance }, "الاجمالي (الرصيد)");
 
-        TableExcel.AddSheet(wb, "الحركات", title, sub,
+        TableExcel.FillSheet(wb, "الحركات", title, sub,
             new List<XCol>
             {
                 new("التاريخ", 14, TableExcel.Day, true), new("النوع", 16), new("البيان", 52),

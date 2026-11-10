@@ -146,6 +146,7 @@ builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<ICommissionService, CommissionService>();
 builder.Services.AddScoped<ISalesManagerGroupService, SalesManagerGroupService>();
 builder.Services.AddScoped<IEmployeeBalanceService, EmployeeBalanceService>();
+builder.Services.AddScoped<IProjectReviewService, ProjectReviewService>();
 
 builder.Services.AddCorrelationIdManager();
 

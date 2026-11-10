@@ -825,7 +825,7 @@ public class EmployeePayrollService : IEmployeePayrollService
         using var wb = new XLWorkbook();
 
         // ---- summary ----
-        TableExcel.AddSheet(wb, "الملخص", title, sub,
+        TableExcel.FillSheet(wb, "الملخص", title, sub,
             new List<XCol> { new("البند", 42), new("القيمة", 18, TableExcel.Money, true) },
             new List<object?[]>
             {
@@ -843,7 +843,7 @@ public class EmployeePayrollService : IEmployeePayrollService
             new object?[] { null, d.NetTotal }, "الاجمالي (الصافي)");
 
         // ---- commissions ----
-        TableExcel.AddSheet(wb, "العمولات", title, "تفاصيل العمولات",
+        TableExcel.FillSheet(wb, "العمولات", title, "تفاصيل العمولات",
             new List<XCol>
             {
             new("النوع", 10, null, true), new("الاوردر", 10, null, true), new("الفاتورة", 10, null, true),
@@ -862,7 +862,7 @@ public class EmployeePayrollService : IEmployeePayrollService
 
         // ---- additions and deductions ----
         var net = d.Adjustments.Sum(a => a.Kind == PayrollAdjustmentKind.Addition ? a.Amount : -a.Amount);
-        TableExcel.AddSheet(wb, "الاضافات والخصومات", title, "تفاصيل الخصومات والاضافات",
+        TableExcel.FillSheet(wb, "الاضافات والخصومات", title, "تفاصيل الخصومات والاضافات",
             new List<XCol>
             {
             new("المدير", 22), new("التاريخ", 14, TableExcel.Day, true), new("الفئة", 12, null, true),
@@ -873,7 +873,7 @@ public class EmployeePayrollService : IEmployeePayrollService
             new object?[] { null, null, null, null, net, null }, "الصافي (اضافات - خصومات)");
 
         // ---- loans ----
-        TableExcel.AddSheet(wb, "السلف", title, "اقساط هذا الشهر",
+        TableExcel.FillSheet(wb, "السلف", title, "اقساط هذا الشهر",
             new List<XCol>
             {
             new("السلفة", 12, null, true), new("القسط", 10, null, true), new("تاريخ الاستحقاق", 16, TableExcel.Day, true),

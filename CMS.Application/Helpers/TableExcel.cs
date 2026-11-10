@@ -18,18 +18,25 @@ public static class TableExcel
     private static readonly XLColor Line = XLColor.FromHtml("#BFC9D9");
 
     /// <param name="totals">same length as the columns; null cells stay empty, the first cell may hold the label</param>
-    /// 
     public static byte[] Build(string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
-                           IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
+                               IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
+        => BuildBook(new[] { new XSheet(sheet, title, subtitle, cols, rows, totals, totalsLabel) });
+
+    /// <summary>one sheet of a multi-sheet workbook</summary>
+    public record XSheet(string Name, string Title, string Subtitle, IReadOnlyList<XCol> Cols,
+                         IEnumerable<object?[]> Rows, object?[]? Totals = null, string TotalsLabel = "الاجمالي");
+
+    public static byte[] BuildBook(IEnumerable<XSheet> sheets)
     {
         using var wb = new XLWorkbook();
-        AddSheet(wb, sheet, title, subtitle, cols, rows, totals, totalsLabel);
+        foreach (var sh in sheets) FillSheet(wb, sh.Name, sh.Title, sh.Subtitle, sh.Cols, sh.Rows, sh.Totals, sh.TotalsLabel);
         using var ms = new MemoryStream();
         wb.SaveAs(ms);
         return ms.ToArray();
     }
-    public static void AddSheet(XLWorkbook wb, string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
-                            IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
+
+    public static void FillSheet(XLWorkbook wb, string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
+                                  IEnumerable<object?[]> rows, object?[]? totals, string totalsLabel)
     {
         var ws = wb.AddWorksheet(sheet);
         ws.RightToLeft = true;
@@ -125,18 +132,7 @@ public static class TableExcel
         ws.PageSetup.Margins.Left = ws.PageSetup.Margins.Right = 0.4;
         ws.PageSetup.SetRowsToRepeatAtTop(headerRow, headerRow);
         ws.PageSetup.Footer.Center.AddText(XLHFPredefinedText.PageNumber, XLHFOccurrence.AllPages);
-
-        //using var ms = new MemoryStream();
-        //wb.SaveAs(ms);
-        //return ms.ToArray();
     }
-
-    //public static byte[] Build(string sheet, string title, string subtitle, IReadOnlyList<XCol> cols,
-    //                           IEnumerable<object?[]> rows, object?[]? totals = null, string totalsLabel = "الاجمالي")
-    //{
-    //    using var wb = new XLWorkbook();
-        
-    //}
 
     private static void Put(IXLCell c, object? v)
     {
