@@ -1,6 +1,7 @@
 ﻿// Services/ProductAssemblyDefinitionService.cs
 using CMS.Application.Interfaces.Configuration;
 using CMS.Domain.Models;
+using CMS.Domain.Enums;
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
@@ -31,6 +32,9 @@ public class ProductAssemblyDefinitionService : IProductAssemblyDefinitionServic
         {
             OutProductId = outProductId,
             OutProductName = outProductName,
+            OperationType = first.OperationType,
+            FirstTechComm = first.FirstTechComm,
+            SecondTechComm = first.SecondTechComm,
             InProductList = rows.Select(r => new AssemblyDefinitionInProduct
             {
                 InProductId = r.InProductId,
@@ -59,6 +63,16 @@ public class ProductAssemblyDefinitionService : IProductAssemblyDefinitionServic
 
         if (!outProductExists)
             return $"Out product with Id {dto.OutProductId} was not found";
+
+        // --- OperationType / technician commissions ---
+        if (!Enum.IsDefined(typeof(ProductAssemblyOperationType), dto.OperationType))
+            return "OperationType is not a valid value";
+
+        if (dto.FirstTechComm < 0)
+            return "FirstTechComm cannot be negative";
+
+        if (dto.SecondTechComm < 0)
+            return "SecondTechComm cannot be negative";
 
         // --- InProductList (at least one required) ---
         if (dto.InProductList is null || dto.InProductList.Count == 0)
@@ -147,7 +161,10 @@ public class ProductAssemblyDefinitionService : IProductAssemblyDefinitionServic
         {
             OutProductId = op.OutProductId,
             InProductId = item.InProductId,
-            InQuantity = item.InProductQuantity
+            InQuantity = item.InProductQuantity,
+            OperationType = op.OperationType,
+            FirstTechComm = op.FirstTechComm,
+            SecondTechComm = op.SecondTechComm
         }).ToList();
 
         await _dbContext.ProductAssemblyDefinition.AddRangeAsync(rows);
@@ -195,7 +212,10 @@ public class ProductAssemblyDefinitionService : IProductAssemblyDefinitionServic
         {
             OutProductId = id,
             InProductId = item.InProductId,
-            InQuantity = item.InProductQuantity
+            InQuantity = item.InProductQuantity,
+            OperationType = cat.OperationType,
+            FirstTechComm = cat.FirstTechComm,
+            SecondTechComm = cat.SecondTechComm
         }).ToList();
 
         await _dbContext.ProductAssemblyDefinition.AddRangeAsync(newRows);

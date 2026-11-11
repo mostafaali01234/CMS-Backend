@@ -12,58 +12,59 @@ namespace CMS.Infrastructure.Persistence
 
         #region DbSet
         public DbSet<ApiActivityLog> ApiActivityLog { get; set; }
-        public  DbSet<ApiDataChangeLog> ApiDataChangeLog { get; set; }
-        public  DbSet<RefreshToken> RefreshTokens { get; set; }
-        public  DbSet<Department> Department { get; set; }
-        public  DbSet<Job> Job { get; set; }
-        public  DbSet<Employee> Employee { get; set; }
-        public  DbSet<EmployeeLoan> EmployeeLoan { get; set; }
-        public  DbSet<EmployeeLoanInstallment> EmployeeLoanInstallment { get; set; }
-        public  DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; set; }
-        public  DbSet<EmployeePayroll> EmployeePayroll { get; set; }
-        public  DbSet<EmployeeCommission> EmployeeCommission { get; set; }
-        public  DbSet<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; set; }
-        public  DbSet<EmployeeSpecialCommission> EmployeeSpecialCommission { get; set; }
-        public  DbSet<SalesManagerGroup> SalesManagerGroup { get; set; }
-        public  DbSet<SalesManagerGroupSeller> SalesManagerGroupSeller { get; set; }
-        public  DbSet<SalesManagerGroupProduct> SalesManagerGroupProduct { get; set; }
-        public  DbSet<CountryState> CountryState { get; set; }
-        public  DbSet<City> City { get; set; }
-        public  DbSet<Product> Product { get; set; }
-        public  DbSet<ProductCategory> ProductCategory { get; set; }
-        public  DbSet<ProductUnit> ProductUnit { get; set; }
-        public  DbSet<ProductUnitCommission> ProductUnitCommission { get; set; }
-        public  DbSet<ProductAssemblyDefinition> ProductAssemblyDefinition { get; set; }
-        public  DbSet<ProductAssemblyOperation> ProductAssemblyOperation { get; set; }
-        public  DbSet<Supplier> Supplier { get; set; }
-        public  DbSet<Customer> Customer { get; set; }
-        public  DbSet<CustomerSource> CustomerSource { get; set; }
-        public  DbSet<Car> Car { get; set; }
-        public  DbSet<Store> Store { get; set; }
-        public  DbSet<StoreTransaction> StoreTransaction { get; set; }
-        public  DbSet<StoreTransactionItem> StoreTransactionItem { get; set; }
-        public  DbSet<Project> Project { get; set; }
-        public  DbSet<ExpenseCategory> ExpenseCategory { get; set; }
-        public  DbSet<ExpenseType> ExpenseType { get; set; }
-        public  DbSet<Expense> Expense { get; set; }
-        public  DbSet<OrderLine> OrderLine { get; set; }
-        public  DbSet<MoneySafeType> MoneySafeType { get; set; }
-        public  DbSet<MoneySafeCategory> MoneySafeCategory { get; set; }
-        public  DbSet<MoneySafe> MoneySafe { get; set; }
-        public  DbSet<MoneySafeTransaction> MoneySafeTransaction { get; set; }
-        public  DbSet<Order> Order { get; set; }
-        public  DbSet<OrderItem> OrderItem { get; set; }
-        public  DbSet<OrderTechHistory> OrderTechHistory { get; set; }
-        public  DbSet<OrderNoteHistory> OrderNoteHistory { get; set; }
-        public  DbSet<FeedbackQuestion> FeedbackQuestion { get; set; }
-        public  DbSet<SaleInvoice> SaleInvoice { get; set; }
-        public  DbSet<SaleInvoiceItem> SaleInvoiceItem { get; set; }
-        public  DbSet<BuyInvoice> BuyInvoice { get; set; }
-        public  DbSet<BuyInvoiceItem> BuyInvoiceItem { get; set; }
-        public  DbSet<CustomerPayment> CustomerPayment { get; set; }
-        public  DbSet<SupplierPayment> SupplierPayment { get; set; }
-        public  DbSet<Shift> Shift { get; set; }
-        public  DbSet<ShiftTech> ShiftTech { get; set; }
+        public DbSet<ApiDataChangeLog> ApiDataChangeLog { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<Department> Department { get; set; }
+        public DbSet<Job> Job { get; set; }
+        public DbSet<Employee> Employee { get; set; }
+        public DbSet<EmployeeLoan> EmployeeLoan { get; set; }
+        public DbSet<EmployeeLoanInstallment> EmployeeLoanInstallment { get; set; }
+        public DbSet<EmployeePayrollAdjustment> EmployeePayrollAdjustment { get; set; }
+        public DbSet<EmployeePayroll> EmployeePayroll { get; set; }
+        public DbSet<EmployeeCommission> EmployeeCommission { get; set; }
+        public DbSet<EmployeeSpecialCommissionDefinition> EmployeeSpecialCommissionDefinition { get; set; }
+        public DbSet<EmployeeSpecialCommission> EmployeeSpecialCommission { get; set; }
+        public DbSet<SalesManagerGroup> SalesManagerGroup { get; set; }
+        public DbSet<SalesManagerGroupSeller> SalesManagerGroupSeller { get; set; }
+        public DbSet<SalesManagerGroupProduct> SalesManagerGroupProduct { get; set; }
+        public DbSet<CountryState> CountryState { get; set; }
+        public DbSet<City> City { get; set; }
+        public DbSet<Product> Product { get; set; }
+        public DbSet<ProductCategory> ProductCategory { get; set; }
+        public DbSet<ProductUnit> ProductUnit { get; set; }
+        public DbSet<ProductUnitCommission> ProductUnitCommission { get; set; }
+        public DbSet<ProductAssemblyDefinition> ProductAssemblyDefinition { get; set; }
+        public DbSet<ProductAssemblyOperation> ProductAssemblyOperation { get; set; }
+        public DbSet<ProductAssemblyOperationItem> ProductAssemblyOperationItem { get; set; }
+        public DbSet<Supplier> Supplier { get; set; }
+        public DbSet<Customer> Customer { get; set; }
+        public DbSet<CustomerSource> CustomerSource { get; set; }
+        public DbSet<Car> Car { get; set; }
+        public DbSet<Store> Store { get; set; }
+        public DbSet<StoreTransaction> StoreTransaction { get; set; }
+        public DbSet<StoreTransactionItem> StoreTransactionItem { get; set; }
+        public DbSet<Project> Project { get; set; }
+        public DbSet<ExpenseCategory> ExpenseCategory { get; set; }
+        public DbSet<ExpenseType> ExpenseType { get; set; }
+        public DbSet<Expense> Expense { get; set; }
+        public DbSet<OrderLine> OrderLine { get; set; }
+        public DbSet<MoneySafeType> MoneySafeType { get; set; }
+        public DbSet<MoneySafeCategory> MoneySafeCategory { get; set; }
+        public DbSet<MoneySafe> MoneySafe { get; set; }
+        public DbSet<MoneySafeTransaction> MoneySafeTransaction { get; set; }
+        public DbSet<Order> Order { get; set; }
+        public DbSet<OrderItem> OrderItem { get; set; }
+        public DbSet<OrderTechHistory> OrderTechHistory { get; set; }
+        public DbSet<OrderNoteHistory> OrderNoteHistory { get; set; }
+        public DbSet<FeedbackQuestion> FeedbackQuestion { get; set; }
+        public DbSet<SaleInvoice> SaleInvoice { get; set; }
+        public DbSet<SaleInvoiceItem> SaleInvoiceItem { get; set; }
+        public DbSet<BuyInvoice> BuyInvoice { get; set; }
+        public DbSet<BuyInvoiceItem> BuyInvoiceItem { get; set; }
+        public DbSet<CustomerPayment> CustomerPayment { get; set; }
+        public DbSet<SupplierPayment> SupplierPayment { get; set; }
+        public DbSet<Shift> Shift { get; set; }
+        public DbSet<ShiftTech> ShiftTech { get; set; }
 
         #endregion
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -143,6 +144,10 @@ namespace CMS.Infrastructure.Persistence
                       .WithMany()
                       .HasForeignKey(d => d.InProductId)
                       .OnDelete(DeleteBehavior.NoAction);
+
+                e.Property(d => d.FirstTechComm).HasPrecision(18, 4);
+                e.Property(d => d.SecondTechComm).HasPrecision(18, 4);
+                e.Property(d => d.InQuantity).HasPrecision(18, 3);          // same precision as invoice quantities
             });
 
             modelBuilder.Entity<ProductAssemblyOperation>(e =>
@@ -161,6 +166,35 @@ namespace CMS.Infrastructure.Persistence
                       .WithMany()
                       .HasForeignKey(o => o.OutStoreId)
                       .OnDelete(DeleteBehavior.NoAction);
+
+                e.HasOne(o => o.FirstTech)
+                      .WithMany()
+                      .HasForeignKey(o => o.FirstTechId)
+                      .OnDelete(DeleteBehavior.NoAction);
+
+                e.HasOne(o => o.SecondTech)
+                      .WithMany()
+                      .HasForeignKey(o => o.SecondTechId)
+                      .OnDelete(DeleteBehavior.NoAction);
+
+                e.Property(o => o.Quantity).HasPrecision(18, 3);            // same precision as invoice quantities
+            });
+
+            modelBuilder.Entity<ProductAssemblyOperationItem>(e =>
+            {
+                e.HasOne(i => i.Operation)
+                      .WithMany(o => o.Items)
+                      .HasForeignKey(i => i.OperationId)
+                      .OnDelete(DeleteBehavior.NoAction);
+
+                e.HasOne(i => i.Product)
+                      .WithMany()
+                      .HasForeignKey(i => i.ProductId)
+                      .OnDelete(DeleteBehavior.NoAction);
+
+                e.Property(i => i.UnitQuantity).HasPrecision(18, 3);
+                e.Property(i => i.Quantity).HasPrecision(18, 3);
+                e.HasIndex(i => i.OperationId);
             });
 
             modelBuilder.Entity<MoneySafe>(e =>
@@ -241,29 +275,29 @@ namespace CMS.Infrastructure.Persistence
                 e.Property(x => x.Total).HasPrecision(18, 2);
                 e.Property(x => x.Discount).HasPrecision(18, 2);
                 e.Property(x => x.NetTotal).HasPrecision(18, 2);
-                e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2); 
+                e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2);
                 e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
             });
-            
+
             modelBuilder.Entity<SaleInvoice>(e =>
             {
                 e.Property(x => x.Total).HasPrecision(18, 2);
                 e.Property(x => x.Discount).HasPrecision(18, 2);
                 e.Property(x => x.NetTotal).HasPrecision(18, 2);
-                e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2); 
+                e.Property(x => x.NetTotalCurrency).HasPrecision(18, 2);
                 e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
                 modelBuilder.Entity<BuyInvoice>().HasIndex(x => x.OrderId).IsUnique().HasFilter("[order_id] IS NOT NULL");
             });
-            
+
             modelBuilder.Entity<BuyInvoiceItem>(e =>
             {
                 e.Property(x => x.ProductPrice).HasPrecision(18, 2);
                 e.Property(x => x.ProductQuantity).HasPrecision(18, 3);
                 e.Property(x => x.ProductTotal).HasPrecision(18, 2);
                 e.Property(x => x.ProductDiscount).HasPrecision(18, 2);
-                e.Property(x => x.ProductNetTotal).HasPrecision(18, 2); 
+                e.Property(x => x.ProductNetTotal).HasPrecision(18, 2);
                 e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(i => i.OriginalItem)
@@ -271,7 +305,7 @@ namespace CMS.Infrastructure.Persistence
                 .HasForeignKey(i => i.OriginalItemId)
                 .OnDelete(DeleteBehavior.NoAction);
             });
-            
+
             modelBuilder.Entity<SaleInvoiceItem>(e =>
             {
                 e.Property(x => x.ProductPrice).HasPrecision(18, 2);
@@ -285,7 +319,7 @@ namespace CMS.Infrastructure.Persistence
                     .HasForeignKey(i => i.OriginalItemId)
                     .OnDelete(DeleteBehavior.NoAction);
             });
-            
+
             modelBuilder.Entity<SupplierPayment>(e =>
             {
                 e.Property(x => x.Amount).HasPrecision(18, 4);
@@ -294,7 +328,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.MoneySafe).WithMany().HasForeignKey(x => x.MoneySafeId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Auditor).WithMany().HasForeignKey(x => x.AuditorId).OnDelete(DeleteBehavior.Restrict);
             });
-            
+
             modelBuilder.Entity<CustomerPayment>(e =>
             {
                 e.Property(x => x.Amount).HasPrecision(18, 4);
@@ -311,6 +345,8 @@ namespace CMS.Infrastructure.Persistence
                 e.Property(x => x.Extra_Amount).HasPrecision(18, 2);
                 e.HasOne(x => x.Order).WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Invoice).WithMany().HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.AssemblyOperation).WithMany().HasForeignKey(x => x.AssemblyOperationId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(x => x.AssemblyOperationId);
                 e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
             });
@@ -337,7 +373,7 @@ namespace CMS.Infrastructure.Persistence
                 e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
 
                 e.Property(x => x.SalesTotal).HasPrecision(18, 2);
-                e.Property(x => x.CommissionRate).HasPrecision(5, 4); 
+                e.Property(x => x.CommissionRate).HasPrecision(5, 4);
                 e.Property(x => x.CommissionTotal).HasPrecision(18, 2);
             });
 

@@ -488,8 +488,9 @@ public class EmployeePayrollService : IEmployeePayrollService
             {
                 Id = c.Id,
                 Role = c.EmployeeRole.ToString(),
-                OrderId = c.OrderId,
-                InvoiceId = c.InvoiceId,
+                OrderId = c.OrderId ?? 0,
+                InvoiceId = c.InvoiceId ?? 0,
+                AssemblyOperationId = c.AssemblyOperationId,
                 InvoiceNumber = c.Invoice?.Number ?? 0,
                 OrderType = c.Invoice?.Order?.Type.ToString() ?? "",
                 CustomerName = c.Invoice?.Customer?.Name ?? "",
@@ -743,10 +744,11 @@ public class EmployeePayrollService : IEmployeePayrollService
         var invoiceIds = new HashSet<long>();
 
         // 1) the commissions he already has: invoice dated or paid in the month
+        //    (assembly-operation commissions have no invoice and are not recalculated here)
         invoiceIds.UnionWith(await _dbContext.EmployeeCommission
-            .Where(c => !c.IsDeleted && c.EmployeeId == employeeId
+            .Where(c => !c.IsDeleted && c.EmployeeId == employeeId && c.InvoiceId != null
                      && ((c.PaidAt >= start && c.PaidAt < next) || (c.Invoice!.Date >= start && c.Invoice.Date < next)))
-            .Select(c => c.InvoiceId).ToListAsync());
+            .Select(c => c.InvoiceId!.Value).ToListAsync());
 
         // 2) as a seller
         invoiceIds.UnionWith(await _dbContext.SaleInvoice

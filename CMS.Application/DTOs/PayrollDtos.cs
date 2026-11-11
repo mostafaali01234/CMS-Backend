@@ -33,6 +33,7 @@ public class PayrollCommissionRowDto
     [JsonPropertyName("role")] public string Role { get; set; } = "";               // Sales | Tech | Manager
     [JsonPropertyName("order_id")] public long OrderId { get; set; }
     [JsonPropertyName("invoice_id")] public long InvoiceId { get; set; }
+    [JsonPropertyName("assembly_operation_id")] public long? AssemblyOperationId { get; set; }   // set => commission of an assembly operation, no invoice
     [JsonPropertyName("invoice_number")] public long InvoiceNumber { get; set; }
     [JsonPropertyName("order_type")] public string OrderType { get; set; } = "";
     [JsonPropertyName("customer_name")] public string CustomerName { get; set; } = "";

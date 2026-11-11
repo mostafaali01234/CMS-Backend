@@ -29,6 +29,18 @@ namespace CMS.Domain.Models
         [JsonPropertyName("in_quantity")]
         public decimal InQuantity { get; set; }
 
+        [Column(name: "operation_type")]
+        [JsonPropertyName("operation_type")]
+        public ProductAssemblyOperationType OperationType { get; set; }
+
+        [Column(name: "first_tech_comm")]
+        [JsonPropertyName("first_tech_comm")]
+        public decimal FirstTechComm { get; set; } = 0;
+
+        [Column(name: "second_tech_comm")]
+        [JsonPropertyName("second_tech_comm")]
+        public decimal SecondTechComm { get; set; } = 0;
+
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? UpdatedAtUtc { get; set; }

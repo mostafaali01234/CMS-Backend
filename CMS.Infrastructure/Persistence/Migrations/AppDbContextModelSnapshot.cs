@@ -895,6 +895,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("amount");
 
+                    b.Property<long?>("AssemblyOperationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("assembly_operation_id");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -917,7 +921,7 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("extra_amount");
 
-                    b.Property<long>("InvoiceId")
+                    b.Property<long?>("InvoiceId")
                         .HasColumnType("bigint")
                         .HasColumnName("invoice_id");
 
@@ -928,7 +932,7 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("manager_group_id");
 
-                    b.Property<long>("OrderId")
+                    b.Property<long?>("OrderId")
                         .HasColumnType("bigint")
                         .HasColumnName("order_id");
 
@@ -968,6 +972,8 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnName("withdrawn_at");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssemblyOperationId");
 
                     b.HasIndex("EmployeeId");
 
@@ -2355,24 +2361,41 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("FirstTechComm")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasColumnName("first_tech_comm")
+                        .HasAnnotation("Relational:JsonPropertyName", "first_tech_comm");
+
                     b.Property<long>("InProductId")
                         .HasColumnType("bigint")
                         .HasColumnName("in_product_id")
                         .HasAnnotation("Relational:JsonPropertyName", "in_product_id");
 
                     b.Property<decimal>("InQuantity")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
                         .HasColumnName("in_quantity")
                         .HasAnnotation("Relational:JsonPropertyName", "in_quantity");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<int>("OperationType")
+                        .HasColumnType("int")
+                        .HasColumnName("operation_type")
+                        .HasAnnotation("Relational:JsonPropertyName", "operation_type");
+
                     b.Property<long>("OutProductId")
                         .HasColumnType("bigint")
                         .HasColumnName("out_product_id")
                         .HasAnnotation("Relational:JsonPropertyName", "out_product_id");
+
+                    b.Property<decimal>("SecondTechComm")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasColumnName("second_tech_comm")
+                        .HasAnnotation("Relational:JsonPropertyName", "second_tech_comm");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -2407,6 +2430,11 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("FirstTechId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("first_tech_id")
+                        .HasAnnotation("Relational:JsonPropertyName", "first_tech_id");
+
                     b.Property<long>("InStoreId")
                         .HasColumnType("bigint")
                         .HasColumnName("in_store_id")
@@ -2418,11 +2446,18 @@ namespace CMS.Infrastructure.Migrations
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
-                        .HasColumnName("notes");
+                        .HasColumnName("notes")
+                        .HasAnnotation("Relational:JsonPropertyName", "notes");
 
                     b.Property<DateTime>("OperationDate")
                         .HasColumnType("datetime2")
-                        .HasColumnName("operation_date");
+                        .HasColumnName("operation_date")
+                        .HasAnnotation("Relational:JsonPropertyName", "operation_date");
+
+                    b.Property<int>("OperationType")
+                        .HasColumnType("int")
+                        .HasColumnName("operation_type")
+                        .HasAnnotation("Relational:JsonPropertyName", "operation_type");
 
                     b.Property<long>("OutProductId")
                         .HasColumnType("bigint")
@@ -2435,9 +2470,15 @@ namespace CMS.Infrastructure.Migrations
                         .HasAnnotation("Relational:JsonPropertyName", "out_store_id");
 
                     b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("quantity");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasColumnName("quantity")
+                        .HasAnnotation("Relational:JsonPropertyName", "quantity");
+
+                    b.Property<long?>("SecondTechId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("second_tech_id")
+                        .HasAnnotation("Relational:JsonPropertyName", "second_tech_id");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -2447,13 +2488,75 @@ namespace CMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FirstTechId");
+
                     b.HasIndex("InStoreId");
 
                     b.HasIndex("OutProductId");
 
                     b.HasIndex("OutStoreId");
 
+                    b.HasIndex("SecondTechId");
+
                     b.ToTable("product_assembly_operation");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.ProductAssemblyOperationItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("OperationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operation_id")
+                        .HasAnnotation("Relational:JsonPropertyName", "operation_id");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("product_id")
+                        .HasAnnotation("Relational:JsonPropertyName", "product_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasColumnName("quantity")
+                        .HasAnnotation("Relational:JsonPropertyName", "quantity");
+
+                    b.Property<decimal>("UnitQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasColumnName("unit_quantity")
+                        .HasAnnotation("Relational:JsonPropertyName", "unit_quantity");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("product_assembly_operation_item");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductCategory", b =>
@@ -3955,6 +4058,11 @@ namespace CMS.Infrastructure.Migrations
 
             modelBuilder.Entity("CMS.Domain.Models.EmployeeCommission", b =>
                 {
+                    b.HasOne("CMS.Domain.Models.ProductAssemblyOperation", "AssemblyOperation")
+                        .WithMany()
+                        .HasForeignKey("AssemblyOperationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CMS.Domain.Models.Employee", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
@@ -3964,14 +4072,12 @@ namespace CMS.Infrastructure.Migrations
                     b.HasOne("CMS.Domain.Models.SaleInvoice", "Invoice")
                         .WithMany()
                         .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CMS.Domain.Models.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CMS.Domain.Models.EmployeePayroll", "Payroll")
                         .WithMany()
@@ -3982,6 +4088,8 @@ namespace CMS.Infrastructure.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AssemblyOperation");
 
                     b.Navigation("Employee");
 
@@ -4405,6 +4513,11 @@ namespace CMS.Infrastructure.Migrations
 
             modelBuilder.Entity("CMS.Domain.Models.ProductAssemblyOperation", b =>
                 {
+                    b.HasOne("CMS.Domain.Models.Employee", "FirstTech")
+                        .WithMany()
+                        .HasForeignKey("FirstTechId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("CMS.Domain.Models.Store", "InStore")
                         .WithMany()
                         .HasForeignKey("InStoreId")
@@ -4423,11 +4536,39 @@ namespace CMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("CMS.Domain.Models.Employee", "SecondTech")
+                        .WithMany()
+                        .HasForeignKey("SecondTechId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("FirstTech");
+
                     b.Navigation("InStore");
 
                     b.Navigation("OutProduct");
 
                     b.Navigation("OutStore");
+
+                    b.Navigation("SecondTech");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.ProductAssemblyOperationItem", b =>
+                {
+                    b.HasOne("CMS.Domain.Models.ProductAssemblyOperation", "Operation")
+                        .WithMany("Items")
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("CMS.Domain.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Operation");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.ProductUnitCommission", b =>
@@ -4881,6 +5022,11 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("Notes");
 
                     b.Navigation("TechHistory");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.ProductAssemblyOperation", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("CMS.Domain.Models.SaleInvoice", b =>

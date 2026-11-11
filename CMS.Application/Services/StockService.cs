@@ -14,7 +14,7 @@ namespace CMS.Application.Services;
 public class StockMove
 {
     public DateTime Date { get; set; }
-    public int Rank { get; set; }                  // order inside one day: purchases, transfers, sales
+    public int Rank { get; set; }                  // order inside one day: purchases, transfers, assembly, sales
     public long LineId { get; set; }
     public string Operation { get; set; } = "";
     public long DocId { get; set; }
@@ -59,7 +59,7 @@ public class StockService : IStockService
     public StockService(IAppDbContext db) { _db = db; }
 
     // ===================== the one definition of "a stock move" =====================
-    // When product assembly arrives, add its source here (and a rank): everything else follows.
+    // A new source of stock moves is added here (with a rank): everything else follows.
 
     private IQueryable<StockMove> BuyMoves(MoveScope s)
     {
@@ -120,7 +120,7 @@ public class StockService : IStockService
         return q.Select(i => new StockMove
         {
             Date = i.Invoice!.Date,
-            Rank = 3,
+            Rank = 4,
             LineId = i.Id,
             Operation = StockOps.SaleInvoice,
             DocId = i.InvoiceId,
@@ -181,6 +181,85 @@ public class StockService : IStockService
         });
     }
 
+    // Product assembly. Components leave the operation's OutStore, the assembled product enters its InStore.
+    // Only operations that carry their component snapshot count: older ones were saved before assembly touched stock.
+    private IQueryable<StockMove> AssemblyMoves(MoveScope s)
+    {
+        var store = s.StoreId; var product = s.ProductId; var products = s.ProductIds;
+        var from = s.From; var to = s.ToExclusive; var order = s.OrderId;
+        var skip = s.Exclude?.AssemblyOperationId ?? 0;
+
+        // ---- the components consumed ----
+        var used = _db.ProductAssemblyOperationItem.Where(i => !i.IsDeleted && !i.Operation!.IsDeleted
+            && i.OperationId != skip && i.Product!.StorageType == StorageType.مخزني);
+
+        if (order.HasValue) used = used.Where(i => false);           // assembly has no order
+        if (store.HasValue) used = used.Where(i => i.Operation!.OutStoreId == store.Value);
+        if (product.HasValue) used = used.Where(i => i.ProductId == product.Value);
+        if (products != null) used = used.Where(i => products.Contains(i.ProductId));
+        if (from.HasValue) used = used.Where(i => i.Operation!.OperationDate >= from.Value);
+        if (to.HasValue) used = used.Where(i => i.Operation!.OperationDate < to.Value);
+
+        var consumed = used.Select(i => new StockMove
+        {
+            Date = i.Operation!.OperationDate,
+            Rank = 3,
+            LineId = i.Id,
+            Operation = StockOps.ProductAssembly,
+            DocId = i.OperationId,
+            DocNumber = i.OperationId,
+            IsReturn = false,
+            ProductId = i.ProductId,
+            ProductName = i.Product!.Name,
+            CategoryName = i.Product.Category!.Name,
+            Qty = i.Quantity,
+            Price = 0,
+            InStoreId = null,
+            OutStoreId = i.Operation.OutStoreId,
+            InStoreName = null,
+            OutStoreName = i.Operation.OutStore!.Name,
+            OrderId = null,
+            PartyName = null,
+            SellerName = null
+        });
+
+        // ---- the assembled product ----
+        var made = _db.ProductAssemblyOperation.Where(o => !o.IsDeleted && o.Id != skip
+            && o.Items.Any(i => !i.IsDeleted) && o.OutProduct!.StorageType == StorageType.مخزني);
+
+        if (order.HasValue) made = made.Where(o => false);
+        if (store.HasValue) made = made.Where(o => o.InStoreId == store.Value);
+        if (product.HasValue) made = made.Where(o => o.OutProductId == product.Value);
+        if (products != null) made = made.Where(o => products.Contains(o.OutProductId));
+        if (from.HasValue) made = made.Where(o => o.OperationDate >= from.Value);
+        if (to.HasValue) made = made.Where(o => o.OperationDate < to.Value);
+
+        var produced = made.Select(o => new StockMove
+        {
+            Date = o.OperationDate,
+            Rank = 3,
+            LineId = -o.Id,                       // negative: never clashes with a component line (those use the item id)
+            Operation = StockOps.ProductAssembly,
+            DocId = o.Id,
+            DocNumber = o.Id,
+            IsReturn = false,
+            ProductId = o.OutProductId,
+            ProductName = o.OutProduct!.Name,
+            CategoryName = o.OutProduct.Category!.Name,
+            Qty = o.Quantity,
+            Price = 0,
+            InStoreId = o.InStoreId,
+            OutStoreId = null,
+            InStoreName = o.InStore!.Name,
+            OutStoreName = null,
+            OrderId = null,
+            PartyName = null,
+            SellerName = null
+        });
+
+        return consumed.Concat(produced);
+    }
+
     private IQueryable<StockMove> Moves(MoveScope s)
     {
         IQueryable<StockMove>? q = null;
@@ -188,6 +267,7 @@ public class StockService : IStockService
 
         if (s.Operation is null or StockOps.BuyInvoice) Add(BuyMoves(s));
         if (s.Operation is null or StockOps.StoreTransaction) Add(TransferMoves(s));
+        if (s.Operation is null or StockOps.ProductAssembly) Add(AssemblyMoves(s));
         if (s.Operation is null or StockOps.SaleInvoice) Add(SaleMoves(s));
         return q ?? BuyMoves(s).Where(m => false);
     }
@@ -582,8 +662,8 @@ public class StockService : IStockService
         var buys = await _db.BuyInvoice.Where(i => buyIds.Contains(i.Id))
             .Include(i => i.Payments).Include(i => i.Returns).AsNoTracking().ToDictionaryAsync(i => i.Id);
 
-        var comm = (await _db.EmployeeCommission.Where(c => !c.IsDeleted && saleIds.Contains(c.InvoiceId))
-            .GroupBy(c => new { c.InvoiceId, c.ProductId })
+        var comm = (await _db.EmployeeCommission.Where(c => !c.IsDeleted && c.InvoiceId != null && saleIds.Contains(c.InvoiceId.Value))
+            .GroupBy(c => new { InvoiceId = c.InvoiceId!.Value, c.ProductId })
             .Select(g => new { g.Key.InvoiceId, g.Key.ProductId, Total = g.Sum(x => x.Amount + x.Extra_Amount) })
             .ToListAsync()).ToDictionary(x => (x.InvoiceId, x.ProductId), x => x.Total);
 
@@ -638,6 +718,7 @@ public class StockService : IStockService
         StockOps.StoreTransaction => "تحويل مخازن",
         StockOps.BuyInvoice => "فاتورة شراء",
         StockOps.SaleInvoice => "فاتورة بيع",
+        StockOps.ProductAssembly => "تجميع / تصنيع",
         _ => ""
     };
 

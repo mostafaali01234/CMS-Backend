@@ -36,6 +36,7 @@ public class EmployeeCommissionService : IEmployeeCommissionService
             Id = c.Id,
             OrderId = c.OrderId,
             InvoiceId = c.InvoiceId,
+            AssemblyOperationId = c.AssemblyOperationId,
             InvoiceNumber = c.Invoice?.Number ?? 0,
             EmployeeId = c.EmployeeId,
             EmployeeName = c.Employee?.Name ?? "",
@@ -69,9 +70,22 @@ public class EmployeeCommissionService : IEmployeeCommissionService
         if (dto is null)
             return "Commission payload is required";
 
+        // commissions of an assembly operation have no order / invoice: only the amounts can be edited
+        if (dto.AssemblyOperationId.HasValue)
+        {
+            if (dto.Amount < 0) return "Amount cannot be negative";
+            if (dto.ProductId <= 0) return "ProductId is required";
+            if (!Enum.IsDefined(typeof(CommissionStatus), dto.Status)) return "Status is not a valid value";
+            if (dto.WithdrawnAt.HasValue && !dto.PaidAt.HasValue) return "WithdrawnAt cannot be set without PaidAt also being set";
+            return null;
+        }
+
         // --- Order (required FK) ---
-        if (dto.OrderId <= 0)
+        if (dto.OrderId is null or <= 0)
             return "OrderId is required";
+
+        if (dto.InvoiceId is null or <= 0)
+            return "InvoiceId is required";
 
         var orderExists = await _dbContext.Order
             .AnyAsync(o => o.Id == dto.OrderId && !o.IsDeleted);
@@ -196,7 +210,8 @@ public class EmployeeCommissionService : IEmployeeCommissionService
             .OrderBy(c => c.CreatedAtUtc)
             .ToListAsync();
         var list = items.Select(ToDto).ToList();
-        var result = new CommissionPageDto() {
+        var result = new CommissionPageDto()
+        {
             CommissionTotal = list.Sum(c => c.Amount + c.ExtraAmount),
             SalesCommissions = list.Where(c => c.EmployeeRole == CommissionRole.Sales).ToList(),
             SalesTotal = list.Where(c => c.EmployeeRole == CommissionRole.Sales).Sum(c => c.Amount + c.ExtraAmount),
@@ -238,6 +253,7 @@ public class EmployeeCommissionService : IEmployeeCommissionService
         {
             OrderId = dto.OrderId,
             InvoiceId = dto.InvoiceId,
+            AssemblyOperationId = dto.AssemblyOperationId,
             EmployeeId = dto.EmployeeId,
             EmployeeRole = dto.EmployeeRole,
             ProductId = dto.ProductId,
@@ -285,8 +301,12 @@ public class EmployeeCommissionService : IEmployeeCommissionService
             return ServiceResult<bool>.Failed(validationError);
         }
 
-        existing.OrderId = dto.OrderId;
-        existing.InvoiceId = dto.InvoiceId;
+        // the origin of a commission (invoice or assembly operation) never changes
+        if (existing.AssemblyOperationId is null)
+        {
+            existing.OrderId = dto.OrderId;
+            existing.InvoiceId = dto.InvoiceId;
+        }
         existing.EmployeeId = dto.EmployeeId;
         existing.EmployeeRole = dto.EmployeeRole;
         existing.ProductId = dto.ProductId;

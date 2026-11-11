@@ -13,14 +13,20 @@ namespace CMS.Domain.Models
         public long Id { get; set; }
 
         [Column(name: "order_id")]
-        public long OrderId { get; set; }
+        public long? OrderId { get; set; }
         [ForeignKey(nameof(OrderId))]
         public virtual Order? Order { get; set; }
 
         [Column(name: "invoice_id")]
-        public long InvoiceId { get; set; }
+        public long? InvoiceId { get; set; }
         [ForeignKey(nameof(InvoiceId))]
         public virtual SaleInvoice? Invoice { get; set; }
+
+        // set for commissions that come from a product assembly operation (then order/invoice are null)
+        [Column(name: "assembly_operation_id")]
+        public long? AssemblyOperationId { get; set; }
+        [ForeignKey(nameof(AssemblyOperationId))]
+        public virtual ProductAssemblyOperation? AssemblyOperation { get; set; }
 
         [Column(name: "employee_id")]
         public long EmployeeId { get; set; }

@@ -34,6 +34,7 @@ public interface IAppDbContext
     DbSet<ProductUnitCommission> ProductUnitCommission { get; }
     DbSet<ProductAssemblyDefinition> ProductAssemblyDefinition { get; }
     DbSet<ProductAssemblyOperation> ProductAssemblyOperation { get; }
+    DbSet<ProductAssemblyOperationItem> ProductAssemblyOperationItem { get; }
 
     // Partners / misc
     DbSet<Supplier> Supplier { get; }
@@ -66,10 +67,10 @@ public interface IAppDbContext
     DbSet<OrderNoteHistory> OrderNoteHistory { get; }
     DbSet<Shift> Shift { get; }
     DbSet<ShiftTech> ShiftTech { get; }
-    
+
     //Feedback
     DbSet<FeedbackQuestion> FeedbackQuestion { get; }
-    
+
     //Invoice
     DbSet<BuyInvoice> BuyInvoice { get; }
     DbSet<BuyInvoiceItem> BuyInvoiceItem { get; }

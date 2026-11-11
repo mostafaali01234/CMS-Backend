@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using CMS.Domain.Enums;
+using System.Text.Json.Serialization;
 
 namespace CMS.Application.DTOs
 {
@@ -9,7 +10,17 @@ namespace CMS.Application.DTOs
 
         [JsonPropertyName("out_product_name")]
         public string OutProductName { get; set; } = string.Empty;
-        
+
+        [JsonPropertyName("operation_type")]
+        public ProductAssemblyOperationType OperationType { get; set; }
+
+        // technician commission per unit made (springs manufacturing)
+        [JsonPropertyName("first_tech_comm")]
+        public decimal FirstTechComm { get; set; }
+
+        [JsonPropertyName("second_tech_comm")]
+        public decimal SecondTechComm { get; set; }
+
         [JsonPropertyName("in_product_list")]
         public List<AssemblyDefinitionInProduct> InProductList { get; set; }
 
@@ -23,7 +34,7 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("updated_by")]
         public string UpdatedBy { get; set; } = string.Empty;
     }
-    
+
     public class AssemblyDefinitionInProduct
     {
         [JsonPropertyName("in_product_id")]
@@ -31,7 +42,7 @@ namespace CMS.Application.DTOs
 
         [JsonPropertyName("in_product_name")]
         public string InProductName { get; set; } = string.Empty;
-        
+
         [JsonPropertyName("in_product_quantity")]
         public decimal InProductQuantity { get; set; }
     }

@@ -32,13 +32,35 @@ namespace CMS.Domain.Models
         public virtual Store? OutStore { get; set; }
 
         [Column(name: "quantity")]
+        [JsonPropertyName("quantity")]
         public decimal Quantity { get; set; }
 
         [Column(name: "operation_date")]
+        [JsonPropertyName("operation_date")]
         public DateTime OperationDate { get; set; }
 
+        [Column(name: "operation_type")]
+        [JsonPropertyName("operation_type")]
+        public ProductAssemblyOperationType OperationType { get; set; }
+
+        [Column(name: "first_tech_id")]
+        [JsonPropertyName("first_tech_id")]
+        public long? FirstTechId { get; set; }
+        [ForeignKey(nameof(FirstTechId))]
+        public virtual Employee? FirstTech { get; set; }
+
+        [Column(name: "second_tech_id")]
+        [JsonPropertyName("second_tech_id")]
+        public long? SecondTechId { get; set; }
+        [ForeignKey(nameof(SecondTechId))]
+        public virtual Employee? SecondTech { get; set; }
+
         [Column(name: "notes")]
+        [JsonPropertyName("notes")]
         public string Notes { get; set; } = string.Empty;
+
+        // the components consumed from OutStore (OutProduct itself enters InStore)
+        public virtual ICollection<ProductAssemblyOperationItem> Items { get; set; } = new List<ProductAssemblyOperationItem>();
 
 
         public DateTime CreatedAtUtc { get; set; }

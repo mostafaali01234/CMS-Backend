@@ -11,4 +11,9 @@
         عدة,
         مهام
     }
+    public enum ProductAssemblyOperationType
+    {
+        تجميع_اصناف = 0,
+        تصنيع_زمبلكات = 1,
+    }
 }

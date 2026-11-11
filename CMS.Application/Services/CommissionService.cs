@@ -20,7 +20,7 @@ public class CommissionService : ICommissionService
         var ids = invoiceIds.ToList();
         var locked = await _db.EmployeeCommission.AnyAsync(c =>
             !c.IsDeleted && c.Status == CommissionStatus.Withdrawn
-            && (ids.Contains(c.InvoiceId) || (shiftId != null && c.Invoice!.ShiftId == shiftId)));
+            && (c.InvoiceId != null && ids.Contains(c.InvoiceId.Value) || (shiftId != null && c.Invoice!.ShiftId == shiftId)));
         return locked ? "تم سحب عمولة هذه الوردية في كشف الرواتب، لا يمكن تعديل فواتيرها" : null;
     }
 
@@ -123,21 +123,15 @@ public class CommissionService : ICommissionService
         // ---- apply to employee_commission: update in place so extra_amount, status and paid_at survive ----
         var liveIds = invoices.Select(i => i.Id).ToList();
         var existing = await _db.EmployeeCommission
-            .Where(c => !c.IsDeleted && (liveIds.Contains(c.InvoiceId) || extra.Contains(c.InvoiceId)))
+            .Where(c => !c.IsDeleted && c.InvoiceId != null && (liveIds.Contains(c.InvoiceId.Value) || extra.Contains(c.InvoiceId.Value)))
             .ToListAsync();
 
         foreach (var c in existing)
         {
-            // a commission that a payroll already took is never touched
-            if (c.Status == CommissionStatus.Withdrawn)
-            {
-                desired.Remove((c.InvoiceId, c.ProductId, c.EmployeeId, c.EmployeeRole), out _);
-                continue;
-            }
-            if (desired.Remove((c.InvoiceId, c.ProductId, c.EmployeeId, c.EmployeeRole), out var d))
+            if (desired.Remove((c.InvoiceId!.Value, c.ProductId, c.EmployeeId, c.EmployeeRole), out var d))
             {
                 c.OrderId = d.Order; c.ProductTotal = d.Total; c.Amount = d.Amount;
-                c.SourceEmployeeId = d.Source; c.ManagerGroupId = d.Group;     
+                c.SourceEmployeeId = d.Source; c.ManagerGroupId = d.Group;
             }
             else if (c.Extra_Amount != 0) c.Amount = 0;                // keep the admin's extra amount
             else { c.IsDeleted = true; c.DeletedAtUtc = DateTime.UtcNow; }
@@ -171,7 +165,7 @@ public class CommissionService : ICommissionService
         var invoices = await _db.SaleInvoice.Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale && ids.Contains(i.Id))
             .Include(i => i.Payments).Include(i => i.Returns).AsNoTracking().ToListAsync();
         var rows = await _db.EmployeeCommission
-            .Where(c => !c.IsDeleted && ids.Contains(c.InvoiceId) && c.Status != CommissionStatus.Withdrawn).ToListAsync();
+            .Where(c => !c.IsDeleted && c.InvoiceId != null && ids.Contains(c.InvoiceId.Value) && c.Status != CommissionStatus.Withdrawn).ToListAsync();
 
         foreach (var inv in invoices)
         {

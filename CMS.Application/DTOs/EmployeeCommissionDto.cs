@@ -36,10 +36,14 @@ namespace CMS.Domain.DTOs
         public long Id { get; set; }
 
         [JsonPropertyName("order_id")]
-        public long OrderId { get; set; }
+        public long? OrderId { get; set; }
 
         [JsonPropertyName("invoice_id")]
-        public long InvoiceId { get; set; }
+        public long? InvoiceId { get; set; }
+
+        // set for commissions of a product assembly operation (they have no order / invoice)
+        [JsonPropertyName("assembly_operation_id")]
+        public long? AssemblyOperationId { get; set; }
 
         [JsonPropertyName("invoice_number")]
         public long InvoiceNumber { get; set; }
