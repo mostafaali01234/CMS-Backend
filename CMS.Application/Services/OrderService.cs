@@ -17,6 +17,7 @@ public class OrderService : IOrderService
     private readonly IAppDbContext _dbContext;
     private readonly IOrderNoteHistoryService _noteService;
     private readonly IOrderTechHistoryService _techService;
+    private readonly IOrderNotifier _notifier;
     private readonly ILogger<OrderService> _logger;
     private readonly IOptions<MaintenanceOptions> _maintenanceOptions;
 
@@ -28,13 +29,15 @@ public class OrderService : IOrderService
     public OrderService(
         IAppDbContext dbContext,
         IOrderNoteHistoryService noteService,
-        IOrderTechHistoryService techService,
+        IOrderTechHistoryService techService, 
+        IOrderNotifier notifier,
         IOptions<MaintenanceOptions> maintenanceOptions,
         ILogger<OrderService> logger)
     {
         _dbContext = dbContext;
         _noteService = noteService;
         _techService = techService;
+        _notifier = notifier;
         _logger = logger;
         _maintenanceOptions = maintenanceOptions;
     }
@@ -550,7 +553,7 @@ public class OrderService : IOrderService
 
             order.Status = OrderStatus.قيد_التنفيذ;
             await _dbContext.SaveChangesAsync();
-
+            _notifier.OrderStatusChanged(order.Id, OrderStatus.جديد, OrderStatus.قيد_التنفيذ);
         }
         #endregion
 
@@ -669,6 +672,7 @@ public class OrderService : IOrderService
 
                 order.Status = OrderStatus.قيد_التنفيذ;
                 await _dbContext.SaveChangesAsync();
+                _notifier.OrderStatusChanged(order.Id, OrderStatus.جديد, OrderStatus.قيد_التنفيذ);
             }
         }
         #endregion
@@ -774,10 +778,11 @@ public class OrderService : IOrderService
         if (order is null)
             return ServiceResult<bool>.NotFound("Order not found");
 
+        var oldStatus = order.Status;
         order.Status = OrderStatus.ملغي;
 
         await _dbContext.SaveChangesAsync();
-
+        _notifier.OrderStatusChanged(order.Id, oldStatus, OrderStatus.ملغي);
 
         await _noteService.CreateAsync(new OrderNoteHistoryDto
         {
@@ -801,6 +806,7 @@ public class OrderService : IOrderService
             return ServiceResult<bool>.NotFound("Order not found");
 
         var now = DateTime.UtcNow;
+        var oldStatus = order.Status;
 
         order.IsDeleted = true;
         order.DeletedAtUtc = now;
@@ -816,7 +822,7 @@ public class OrderService : IOrderService
         }
 
         await _dbContext.SaveChangesAsync();
-
+        _notifier.OrderStatusChanged(order.Id, oldStatus, OrderStatus.محذوف);
 
 
         await _noteService.CreateAsync(new OrderNoteHistoryDto

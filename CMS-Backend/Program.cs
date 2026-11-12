@@ -1,3 +1,5 @@
+using CMS.Api.Hubs;
+using CMS.Api.Realtime;
 using CMS.Api.Middleware;
 using CMS.Api.Services;
 using CMS.Application.DTOs;
@@ -12,7 +14,6 @@ using CMS_Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
@@ -48,6 +49,15 @@ builder.Services.AddAuthentication(options => {
     jwt.TokenValidationParameters = tokenValidationParameters;
     jwt.Events = new JwtBearerEvents
     {
+        // Browsers cannot set an Authorization header on a WebSocket, so the SignalR client
+        // sends the token as ?access_token=... : use it, but only for the hub URL
+        OnMessageReceived = ctx =>
+        {
+            var token = ctx.Request.Query["access_token"];
+            if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                ctx.Token = token;
+            return Task.CompletedTask;
+        },
         OnTokenValidated = async ctx =>
         {
             var userId = ctx.Principal!.FindFirstValue("UserId");
@@ -128,6 +138,7 @@ builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IStoreTransactionService, StoreTransactionService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IProjectReviewService, ProjectReviewService>();
 builder.Services.AddScoped<IExpenseCategoryService, ExpenseCategoryService>();
 builder.Services.AddScoped<IExpenseTypeService, ExpenseTypeService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
@@ -154,12 +165,23 @@ builder.Services.AddCorrelationIdManager();
 builder.Services.AddSingleton<ActivityLogQueue>();
 builder.Services.AddHostedService<ActivityLogWriter>();
 
+// ---- notifications & messages ----
+builder.Services.AddSignalR();                                                   // the live connection to browsers
+builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();          // requests drop jobs here...
+builder.Services.AddHostedService<NotificationWorker>();                         // ...this worker saves + pushes them
+builder.Services.AddSingleton<IRealtimePusher, SignalRPusher>();                 // "send to browser" implemented with SignalR
+builder.Services.AddScoped<IOrderNotifier, OrderNotifier>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IUserMessageService, UserMessageService>();
+builder.Services.AddScoped<IUserDirectory, UserDirectory>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularDev", policy =>
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());   // SignalR's negotiate request needs this (only works with explicit origins, as above)
 });
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
@@ -227,5 +249,7 @@ app.AddCorrelationIdMiddleware();
 app.UseMiddleware<ApiActivityLogMiddleware>();
 
 app.MapControllers();
+
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

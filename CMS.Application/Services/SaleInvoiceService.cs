@@ -20,6 +20,7 @@ public class SaleInvoiceService : ISaleInvoiceService
     private readonly ICommissionService _commission;
     private readonly IStockService _stock;
     private readonly ILogger<SaleInvoiceService> _logger;
+    private readonly IOrderNotifier _notifier;
 
     private const int NotesMaxLength = 2000;
     private const int ProductNotesMaxLength = 500;
@@ -29,8 +30,10 @@ public class SaleInvoiceService : ISaleInvoiceService
         IStockService stock,
         IOrderNoteHistoryService noteService,
         ICommissionService commission,
+        IOrderNotifier notifier,
         ILogger<SaleInvoiceService> logger)
     {
+        _notifier = notifier;
         _dbContext = dbContext;
         _stock = stock;
         _logger = logger;
@@ -543,7 +546,10 @@ public class SaleInvoiceService : ISaleInvoiceService
                 .FirstOrDefaultAsync(o => o.Id == invoice.OrderId.Value && !o.IsDeleted);
             if (order != null)
             {
+                var statusBefore = order.Status;
                 order.Status = OrderStatus.تام;
+                // queued now; the worker waits until this transaction has really committed the new status
+                _notifier.OrderStatusChanged(order.Id, statusBefore, OrderStatus.تام);
                 #region Notes
                 await _noteService.CreateAsync(new OrderNoteHistoryDto
                 {
@@ -642,39 +648,39 @@ public class SaleInvoiceService : ISaleInvoiceService
         //{
         //    using var dbTransaction = await _dbContext.Database.BeginTransactionAsync();
 
-            //existing.Number = dto.Number;
-            existing.Type = dto.Type;
-            existing.Date = dto.Date;
-            existing.Notes = dto.Notes;
-            existing.CustomerId = dto.CustomerId;
-            existing.AuditorId = dto.AuditorId;
-            existing.OrderId = dto.OrderId;
-            existing.OriginalInvoiceId = dto.OriginalInvoiceId;
-            existing.Total = dto.Total;
-            existing.Discount = dto.Discount;
-            existing.NetTotal = dto.NetTotal;
-            existing.NetTotalCurrency = dto.NetTotalCurrency;
-            existing.ShiftId = dto.ShiftId;
+        //existing.Number = dto.Number;
+        existing.Type = dto.Type;
+        existing.Date = dto.Date;
+        existing.Notes = dto.Notes;
+        existing.CustomerId = dto.CustomerId;
+        existing.AuditorId = dto.AuditorId;
+        existing.OrderId = dto.OrderId;
+        existing.OriginalInvoiceId = dto.OriginalInvoiceId;
+        existing.Total = dto.Total;
+        existing.Discount = dto.Discount;
+        existing.NetTotal = dto.NetTotal;
+        existing.NetTotalCurrency = dto.NetTotalCurrency;
+        existing.ShiftId = dto.ShiftId;
 
-            if (existing.Items is { Count: > 0 })
-            {
-                _dbContext.SaleInvoiceItem.RemoveRange(existing.Items);
-            }
+        if (existing.Items is { Count: > 0 })
+        {
+            _dbContext.SaleInvoiceItem.RemoveRange(existing.Items);
+        }
 
-            var newItems = dto.Items.Select(i => new SaleInvoiceItem
-            {
-                InvoiceId = existing.Id,
-                ProductId = i.ProductId,
-                StoreId = i.StoreId,
-                ProjectId = i.ProjectId,
-                ProductNotes = i.ProductNotes,
-                PriceType = i.PriceType,
-                ProductPrice = i.ProductPrice,
-                ProductQuantity = i.ProductQuantity,
-                ProductTotal = i.ProductTotal,
-                ProductDiscount = i.ProductDiscount,
-                ProductNetTotal = i.ProductNetTotal
-            }).ToList();
+        var newItems = dto.Items.Select(i => new SaleInvoiceItem
+        {
+            InvoiceId = existing.Id,
+            ProductId = i.ProductId,
+            StoreId = i.StoreId,
+            ProjectId = i.ProjectId,
+            ProductNotes = i.ProductNotes,
+            PriceType = i.PriceType,
+            ProductPrice = i.ProductPrice,
+            ProductQuantity = i.ProductQuantity,
+            ProductTotal = i.ProductTotal,
+            ProductDiscount = i.ProductDiscount,
+            ProductNetTotal = i.ProductNetTotal
+        }).ToList();
 
         await _dbContext.SaleInvoiceItem.AddRangeAsync(newItems);
 
@@ -739,7 +745,10 @@ public class SaleInvoiceService : ISaleInvoiceService
                 var order = await _dbContext.Order
                     .FirstOrDefaultAsync(o => o.Id == invoice.OrderId.Value && !o.IsDeleted);
                 if (order != null && order.Status == OrderStatus.تام)
+                {
                     order.Status = OrderStatus.قيد_التنفيذ;
+                    _notifier.OrderStatusChanged(order.Id, OrderStatus.تام, OrderStatus.قيد_التنفيذ);
+                }
             }
         }
 

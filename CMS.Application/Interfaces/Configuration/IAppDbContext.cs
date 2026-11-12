@@ -22,6 +22,9 @@ public interface IAppDbContext
     DbSet<SalesManagerGroupSeller> SalesManagerGroupSeller { get; }
     DbSet<SalesManagerGroupProduct> SalesManagerGroupProduct { get; }
     DbSet<EmployeePayroll> EmployeePayroll { get; }
+    // Notifications / messages
+    DbSet<Notification> Notification { get; }
+    DbSet<UserMessage> UserMessage { get; }
 
     // Geography
     DbSet<CountryState> CountryState { get; }

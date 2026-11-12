@@ -149,7 +149,8 @@ namespace CMS.Api.Middleware
             HttpMethods.IsOptions(c.Request.Method) ||
             c.Request.Path.StartsWithSegments("/swagger") ||
             c.Request.Path.StartsWithSegments("/openapi") ||
-            c.Request.Path.StartsWithSegments("/health");
+            c.Request.Path.StartsWithSegments("/health")  ||
+            c.Request.Path.StartsWithSegments("/hubs");   // SignalR: long-lived WebSocket, must not be wrapped
 
         private static bool IsTextual(string? contentType) =>
             !string.IsNullOrEmpty(contentType) &&

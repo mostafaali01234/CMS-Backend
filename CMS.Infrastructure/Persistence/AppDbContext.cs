@@ -14,6 +14,8 @@ namespace CMS.Infrastructure.Persistence
         public DbSet<ApiActivityLog> ApiActivityLog { get; set; }
         public DbSet<ApiDataChangeLog> ApiDataChangeLog { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<Notification> Notification { get; set; }
+        public DbSet<UserMessage> UserMessage { get; set; }
         public DbSet<Department> Department { get; set; }
         public DbSet<Job> Job { get; set; }
         public DbSet<Employee> Employee { get; set; }
@@ -420,6 +422,25 @@ namespace CMS.Infrastructure.Persistence
             modelBuilder.Entity<EmployeePayrollAdjustment>().HasOne(x => x.Payroll).WithMany().HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<EmployeeLoanInstallment>().HasOne(x => x.Payroll).WithMany().HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
 
+            // the bell: "my unread notifications, newest first" is by far the most common query
+            modelBuilder.Entity<Notification>(e =>
+            {
+                e.Property(x => x.RecipientUserId).HasMaxLength(450);
+                e.Property(x => x.Title).HasMaxLength(200);
+                e.Property(x => x.Body).HasMaxLength(1000);
+                e.Property(x => x.EntityType).HasMaxLength(50);
+                e.HasIndex(x => new { x.RecipientUserId, x.ReadAtUtc, x.CreatedAtUtc });
+            });
+            modelBuilder.Entity<UserMessage>(e =>
+            {
+                e.Property(x => x.SenderUserId).HasMaxLength(450);
+                e.Property(x => x.RecipientUserId).HasMaxLength(450);
+                e.Property(x => x.Body).HasMaxLength(2000);
+                e.HasOne(x => x.Order).WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
+                // opening a chat: "messages between A and B"; unread badge: "to me, not read"
+                e.HasIndex(x => new { x.RecipientUserId, x.SenderUserId, x.CreatedAtUtc });
+                e.HasIndex(x => new { x.SenderUserId, x.RecipientUserId, x.CreatedAtUtc });
+            });
         }
     }
 }

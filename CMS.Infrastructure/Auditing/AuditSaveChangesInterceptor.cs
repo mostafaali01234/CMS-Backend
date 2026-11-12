@@ -42,7 +42,9 @@ namespace CMS.Infrastructure.Auditing
 
             if (type == typeof(ApiDataChangeLog)
                 || type == typeof(RefreshToken)
-                || type == typeof(ApiActivityLog))
+                || type == typeof(ApiActivityLog)
+                || type == typeof(Notification)      // high volume, system generated
+                || type == typeof(UserMessage))
                 return false;
 
             // Matches IdentityRole and any subclass (e.g. ApplicationRole)
@@ -55,7 +57,7 @@ namespace CMS.Infrastructure.Auditing
 
             return true;
         }
-       
+
         public override InterceptionResult<int> SavingChanges(
            DbContextEventData eventData,
            InterceptionResult<int> result)
@@ -139,11 +141,11 @@ namespace CMS.Infrastructure.Auditing
             // Added rows: remember them; their primary key isn't known yet
             // if it's DB-generated (identity), so the marker row is built
             // after the save completes, in SavedChangesAsync.
-           _pendingAdded.Clear();
-           _pendingAdded.AddRange(entries.Where(e =>
-                e.State == EntityState.Added
-                && ShouldAudit(e)
-                ));
+            _pendingAdded.Clear();
+            _pendingAdded.AddRange(entries.Where(e =>
+                 e.State == EntityState.Added
+                 && ShouldAudit(e)
+                 ));
 
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
         }
