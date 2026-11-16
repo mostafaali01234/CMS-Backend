@@ -178,7 +178,7 @@ builder.Services.AddScoped<IUserDirectory, UserDirectory>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularDev", policy =>
-        policy.WithOrigins("http://localhost:4200", "https://mts2023-001-site8.etempurl.com/")
+        policy.WithOrigins("http://localhost:4200", "https://mts2023-001-site9.etempurl.com")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());   // SignalR's negotiate request needs this (only works with explicit origins, as above)
