@@ -158,6 +158,7 @@ builder.Services.AddScoped<ICommissionService, CommissionService>();
 builder.Services.AddScoped<ISalesManagerGroupService, SalesManagerGroupService>();
 builder.Services.AddScoped<IEmployeeBalanceService, EmployeeBalanceService>();
 builder.Services.AddScoped<IProjectReviewService, ProjectReviewService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddCorrelationIdManager();
 

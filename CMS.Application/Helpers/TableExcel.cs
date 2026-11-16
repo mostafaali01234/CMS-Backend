@@ -2,7 +2,7 @@
 
 namespace CMS.Application.Helpers;
 
-public record XCol(string Header, double Width, string? Format = null, bool Center = false);
+public record XCol(string Header, double Width, string? Format = null, bool Center = false, bool Wrap = false);
 
 public static class TableExcel
 {
@@ -92,6 +92,7 @@ public static class TableExcel
                 Put(cell, c < row.Length ? row[c] : null);
                 if (cols[c].Format != null) cell.Style.NumberFormat.Format = cols[c].Format;
                 if (cols[c].Center) cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                if (cols[c].Wrap) { cell.Style.Alignment.WrapText = true; cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top; }
             }
             if (idx++ % 2 == 1) ws.Range(r, 1, r, n).Style.Fill.BackgroundColor = Zebra;
             r++;

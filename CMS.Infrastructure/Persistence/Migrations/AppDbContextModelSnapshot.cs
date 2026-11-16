@@ -1905,6 +1905,61 @@ namespace CMS.Infrastructure.Migrations
                     b.ToTable("money_safe_type");
                 });
 
+            modelBuilder.Entity("CMS.Domain.Models.Notification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long?>("EntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("read_at_utc");
+
+                    b.Property<string>("RecipientUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientUserId", "ReadAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("notification");
+                });
+
             modelBuilder.Entity("CMS.Domain.Models.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -3604,6 +3659,62 @@ namespace CMS.Infrastructure.Migrations
                     b.ToTable("supplier_payment");
                 });
 
+            modelBuilder.Entity("CMS.Domain.Models.UserMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("read_at_utc");
+
+                    b.Property<string>("RecipientUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<string>("SenderUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("sender_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("RecipientUserId", "SenderUserId", "CreatedAtUtc");
+
+                    b.HasIndex("SenderUserId", "RecipientUserId", "CreatedAtUtc");
+
+                    b.ToTable("user_message");
+                });
+
             modelBuilder.Entity("EmployeeEmployeeSpecialCommissionDefinition", b =>
                 {
                     b.Property<long>("EmployeeSpecialCommissionDefinitionId")
@@ -4883,6 +4994,16 @@ namespace CMS.Infrastructure.Migrations
                     b.Navigation("MoneySafe");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("CMS.Domain.Models.UserMessage", b =>
+                {
+                    b.HasOne("CMS.Domain.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("EmployeeEmployeeSpecialCommissionDefinition", b =>
