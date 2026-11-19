@@ -30,6 +30,9 @@ namespace CMS.Domain.Models
         [Column(name: "status")]
         public TechStatus Status { get; set; }
 
+        [Column(name: "tech_type")]
+        public OrderTechType TechType { get; set; } = OrderTechType.فني;
+
         public DateTime CreatedAtUtc { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? UpdatedAtUtc { get; set; }

@@ -73,8 +73,8 @@ public class OrderService : IOrderService
             LocationNotes = order.LocationNotes,
             SellerId = order.SellerId,
             SellerName = order.Seller?.Name ?? "",
-            TechId = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current)?.TechId ?? 0,
-            TechName = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current)?.Tech?.Name ?? "",
+            TechId = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current && z.TechType == OrderTechType.فني)?.TechId ?? 0,
+            TechName = order.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current && z.TechType == OrderTechType.فني)?.Tech?.Name ?? "",
             AuditorId = order.AuditorId,
             AuditorName = order.Auditor?.Name ?? "",
             AttachmentImage = order.AttachmentImage,
@@ -100,7 +100,12 @@ public class OrderService : IOrderService
                 CreatedAtUtc = n.CreatedAtUtc,
                 CreatedBy = n.CreatedBy ?? ""
             }).ToList() ?? new List<OrderNoteHistoryDto>(),
-            OldOrderId = order.OldOrderId
+            OldOrderId = order.OldOrderId,
+            InspectionTechs = order.TechHistory.Where(z => z.Status == TechStatus.current && z.TechType == OrderTechType.معاينة).Select(z => new OrderInspectionTechsDto
+            {
+                TechId = z.TechId,
+                TechName = z.Tech.Name
+            }).ToList()
         };
     }
 
@@ -111,9 +116,10 @@ public class OrderService : IOrderService
             .Include(o => o.City).ThenInclude(c => c.State)
             .Include(o => o.line)
             .Include(o => o.Seller)
+            .Include(o => o.TechHistory)
             .Include(o => o.Auditor)
             .Include(o => o.Notes)
-            .Include(o => o.TechHistory)
+            .Include(o => o.TechHistory).ThenInclude(z => z.Tech)
             .Include(o => o.Items!.Where(i => !i.IsDeleted))
                 .ThenInclude(i => i.Product).ThenInclude(z => z.Category);
     }
@@ -352,7 +358,7 @@ public class OrderService : IOrderService
         if (q.TechId is > 0)
         {
             var techId = q.TechId;
-            query = query.Where(o => o.TechHistory.Any(t => t.Status == TechStatus.current && t.TechId == techId));
+            query = query.Where(o => o.TechHistory.Any(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && t.TechId == techId));
         }
 
         // ---- search ----
@@ -367,7 +373,7 @@ public class OrderService : IOrderService
                 o.City!.Name.Contains(s) ||
                 o.line!.Name.Contains(s) ||
                 o.Seller!.Name.Contains(s) ||
-                o.TechHistory.Any(t => t.Status == TechStatus.current && t.Tech!.Name.Contains(s)));
+                o.TechHistory.Any(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && t.Tech!.Name.Contains(s)));
         }
 
         // count BEFORE includes (cheap query)
@@ -486,7 +492,7 @@ public class OrderService : IOrderService
             Discount = dto.Discount,
             NetTotal = dto.NetTotal,
             Shipping = dto.Shipping,
-            Category = dto.Shipping ? OrderCategory.شحن : (dto.OldOrderId != null ? OrderCategory.صيانة : OrderCategory.تركيب),
+            Category = dto.Shipping ? OrderCategory.شحن : (dto.OldOrderId != null ? OrderCategory.صيانة : (dto.InspectionTechs.Count > 0 ? OrderCategory.معاينة : OrderCategory.تركيب)),
             CustomerId = dto.CustomerId,
             CityId = dto.CityId,
             LineId = lineId,
@@ -502,6 +508,14 @@ public class OrderService : IOrderService
                 ProductTotal = i.ProductTotal,
                 ProductDiscount = i.ProductDiscount,
                 ProductNetTotal = i.ProductNetTotal
+            }).ToList(),
+            TechHistory = dto.InspectionTechs.Select(z => new OrderTechHistory
+            {
+                TechId = z.TechId,
+                AuditorId = dto.AuditorId,
+                Status = TechStatus.current,
+                TechType = OrderTechType.معاينة,
+                CreatedBy = dto.CreatedBy ?? "System"
             }).ToList()
         };
 
@@ -537,6 +551,7 @@ public class OrderService : IOrderService
             OrderId = order.Id,
             TechId = techId,
             Status = TechStatus.current,
+            TechType = OrderTechType.فني,
             AuditorId = dto.AuditorId,
             CreatedBy = dto.CreatedBy ?? "System"
         }, true);
@@ -655,7 +670,7 @@ public class OrderService : IOrderService
         #endregion
 
         #region Tech
-        var techId = await _dbContext.OrderTechHistory.FirstOrDefaultAsync(z => z.OrderId == dto.OldOrderId && z.Status == TechStatus.current);
+        var techId = await _dbContext.OrderTechHistory.FirstOrDefaultAsync(z => z.OrderId == dto.OldOrderId && z.Status == TechStatus.current && z.TechType == OrderTechType.فني);
         if (techId != null)
         {
             var techAdded = await _techService.CreateAsync(new OrderTechHistoryDto
@@ -736,6 +751,10 @@ public class OrderService : IOrderService
             {
                 _dbContext.OrderItem.RemoveRange(existing.Items);
             }
+            if (existing.TechHistory.Where(z => z.TechType == OrderTechType.معاينة).ToList() is { Count: > 0 })
+            {
+                _dbContext.OrderTechHistory.RemoveRange(existing.TechHistory.Where(z => z.TechType == OrderTechType.معاينة).ToList());
+            }
 
             var newItems = dto.Items.Select(i => new OrderItem
             {
@@ -751,6 +770,21 @@ public class OrderService : IOrderService
             await _dbContext.OrderItem.AddRangeAsync(newItems);
 
             existing.ItemsCategory = getOrderCategory(existing);
+
+            var inspectionTech = dto.InspectionTechs.Select(z => new OrderTechHistory
+            {
+                OrderId = existing.Id,
+                TechId = z.TechId,
+                AuditorId = dto.AuditorId,
+                Status = TechStatus.current,
+                TechType = OrderTechType.معاينة,
+                CreatedBy = dto.CreatedBy ?? "System"
+            }).ToList();
+            if(inspectionTech.Count > 0)
+            {
+                await _dbContext.OrderTechHistory.AddRangeAsync(inspectionTech);
+                existing.Category = OrderCategory.معاينة;
+            }
 
             try
             {

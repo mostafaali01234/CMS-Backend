@@ -33,7 +33,7 @@ public class CommissionService : ICommissionService
             .Where(i => !i.IsDeleted && i.Type == InvoiceType.Sale
                      && ((shiftId != null && i.ShiftId == shiftId) || extra.Contains(i.Id)))
             .Include(i => i.Items.Where(x => !x.IsDeleted))
-            .Include(i => i.Order)
+            .Include(i => i.Order).ThenInclude(z => z.TechHistory)
             .OrderBy(i => i.Date).ThenBy(i => i.Id)
             .AsNoTracking().ToListAsync();
 
@@ -89,6 +89,8 @@ public class CommissionService : ICommissionService
                     if (amount > 0) desired[(inv.Id, g.Key, employee, role)] = (orderId, total, amount, source, group);
                 }
 
+                var inspectors = inv.Order?.TechHistory.Where(z => z.TechType == OrderTechType.معاينة).ToList() ?? null;
+
                 // 1) the normal commissions: they need a rate for this product and unit
                 if (unitIds.Count > 0)
                 {
@@ -100,15 +102,23 @@ public class CommissionService : ICommissionService
                             Put(techs[p], CommissionRole.Tech,
                                 p == 0 ? rate.TechComm : p == 1 ? rate.Assistant1Comm : p == 2 ? rate.Assistant2Comm : rate.Assistant3Comm);
 
-                        var percent = inv.Order?.Type switch
+                        var salesPercent = inv.Order?.Type switch
                         {
                             OrderType.جملة => rate.SalesWholesaleCommPercent,
                             OrderType.نص_جملة => rate.SalesHalfWholesaleCommPercent,
                             OrderType.تركيب => rate.SalesRetailCommPercent,
                             _ => 0m
                         };
+
+                        var reducePercent = _db.Product.FirstOrDefault(z => z.Id == g.Key)?.InspectionCommissionDeductionPercent;
+                        if(inspectors != null && inspectors.Count > 0)
+                        {
+                            foreach(var inspector in inspectors)
+                                Put(inspector.TechId, CommissionRole.Inspection, Math.Round(((total / 100m) / inspectors.Count) * (reducePercent ?? 1), 2));
+                        }
+
                         if (inv.Order?.SellerId is long seller)
-                            Put(seller, CommissionRole.Sales, Math.Round(total * percent / 100m, 2));
+                            Put(seller, CommissionRole.Sales, Math.Round(total * (salesPercent - (inspectors != null && inspectors.Count > 0 ? (reducePercent ?? 0) : 0)) / 100m, 2));
                     }
                 }
 
@@ -130,8 +140,11 @@ public class CommissionService : ICommissionService
         {
             if (desired.Remove((c.InvoiceId!.Value, c.ProductId, c.EmployeeId, c.EmployeeRole), out var d))
             {
-                c.OrderId = d.Order; c.ProductTotal = d.Total; c.Amount = d.Amount;
-                c.SourceEmployeeId = d.Source; c.ManagerGroupId = d.Group;
+                c.OrderId = d.Order; 
+                c.ProductTotal = d.Total; 
+                c.Amount = d.Amount;
+                c.SourceEmployeeId = d.Source; 
+                c.ManagerGroupId = d.Group;
             }
             else if (c.Extra_Amount != 0) c.Amount = 0;                // keep the admin's extra amount
             else { c.IsDeleted = true; c.DeletedAtUtc = DateTime.UtcNow; }

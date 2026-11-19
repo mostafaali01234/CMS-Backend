@@ -55,7 +55,7 @@ public class NotificationService : INotificationService
                     CustomerName = o.Customer != null ? o.Customer.Name : "",
                     SellerUserId = o.Seller != null ? o.Seller.UserId : null,
                     TechUserId = o.TechHistory
-                        .Where(t => !t.IsDeleted && t.Status == Domain.Enums.TechStatus.current && t.Tech != null)
+                        .Where(t => !t.IsDeleted && t.Status == Domain.Enums.TechStatus.current && t.Tech != null && t.TechType == OrderTechType.فني)
                         .Select(t => t.Tech!.UserId).FirstOrDefault()
                 })
                 .FirstOrDefaultAsync();

@@ -541,7 +541,7 @@ public class ShiftService : IShiftService
             board.PrimaryTechName = p?.TechName; board.MoneySafeId = p?.SafeId; board.MoneySafeName = p?.SafeName;
             board.OpenOrders = await _dbContext.Order
                 .Where(o => !o.IsDeleted && o.Status == OrderStatus.قيد_التنفيذ 
-                && o.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current && !z.IsDeleted).TechId 
+                && o.TechHistory.FirstOrDefault(z => z.Status == TechStatus.current && z.TechType == OrderTechType.فني && !z.IsDeleted).TechId 
                     == shiftTech)
                 .OrderBy(o => o.Id)
                 .Select(o => new OpenOrderDto { Id = o.Id, CustomerName = o.Customer!.Name, NetTotal = o.NetTotal })

@@ -27,6 +27,9 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("status")]
         public TechStatus Status { get; set; }
 
+        [JsonPropertyName("tech_type")]
+        public OrderTechType TechType { get; set; }
+
         [JsonPropertyName("created_at_utc")]
         public DateTime? CreatedAtUtc { get; set; }
 

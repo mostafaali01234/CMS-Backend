@@ -32,9 +32,9 @@ public partial class ReportService
         {
             o.Id,
             o.CreatedAtUtc,
-            TechId = o.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechId = o.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                         .OrderByDescending(t => t.Id).Select(t => (long?)t.TechId).FirstOrDefault(),
-            TechName = o.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechName = o.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                         .OrderByDescending(t => t.Id).Select(t => t.Tech!.Name).FirstOrDefault()
         }).ToListAsync();
 

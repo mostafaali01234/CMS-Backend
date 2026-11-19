@@ -43,7 +43,7 @@ public partial class ReportService
             CityName = o.City!.Name,
             StateName = o.City!.State!.Name,
             SellerName = o.Seller!.Name,
-            TechName = o.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechName = o.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                          .OrderByDescending(t => t.Id).Select(t => t.Tech!.Name).FirstOrDefault(),
             Invoices = _db.SaleInvoice.Where(i => i.OrderId == o.Id && !i.IsDeleted && i.Type == InvoiceType.Sale)
                          .OrderBy(i => i.Number).Select(i => new { i.Number, i.NetTotal }).ToList()

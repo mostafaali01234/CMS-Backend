@@ -2286,6 +2286,10 @@ namespace CMS.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("tech_id");
 
+                    b.Property<int>("TechType")
+                        .HasColumnType("int")
+                        .HasColumnName("tech_type");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 

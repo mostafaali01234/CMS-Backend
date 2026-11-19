@@ -1,5 +1,10 @@
 ﻿namespace CMS.Domain.Enums
 {
+    public enum OrderTechType
+    {
+        فني,
+        معاينة
+    }
     public enum TechStatus
     {
         current,

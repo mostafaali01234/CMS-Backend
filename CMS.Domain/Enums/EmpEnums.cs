@@ -19,6 +19,7 @@ namespace CMS.Domain.Enums
     {
         Sales,
         Tech,
+        Inspection,
         Manager
     }
     public enum CommissionStatus

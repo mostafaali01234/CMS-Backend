@@ -187,9 +187,9 @@ public partial class ReportService : IReportService
             StateSort = (int?)o.City!.State!.OrderNumber,
             SellerId = (long?)o.SellerId,
             SellerName = o.Seller!.Name,
-            TechId = o.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechId = o.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                         .OrderByDescending(t => t.Id).Select(t => (long?)t.TechId).FirstOrDefault(),
-            TechName = o.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechName = o.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                         .OrderByDescending(t => t.Id).Select(t => t.Tech!.Name).FirstOrDefault(),
             Items = o.Items.Where(i => !i.IsDeleted)
                         .Select(i => new ReportItemRow
@@ -225,9 +225,9 @@ public partial class ReportService : IReportService
             StateSort = (int?)i.Order!.City!.State!.OrderNumber ?? (int?)i.Customer!.City!.State!.OrderNumber,
             SellerId = (long?)i.Order!.SellerId,
             SellerName = i.Order!.Seller!.Name,
-            TechId = i.Order!.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechId = i.Order!.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                         .OrderByDescending(t => t.Id).Select(t => (long?)t.TechId).FirstOrDefault(),
-            TechName = i.Order!.TechHistory.Where(t => t.Status == TechStatus.current && !t.IsDeleted)
+            TechName = i.Order!.TechHistory.Where(t => t.Status == TechStatus.current && t.TechType == OrderTechType.فني && !t.IsDeleted)
                         .OrderByDescending(t => t.Id).Select(t => t.Tech!.Name).FirstOrDefault(),
             Items = i.Items.Where(x => !x.IsDeleted)
                         .Select(x => new ReportItemRow

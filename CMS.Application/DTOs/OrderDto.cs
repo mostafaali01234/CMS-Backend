@@ -106,6 +106,9 @@ namespace CMS.Application.DTOs
         [JsonPropertyName("notes")]
         public List<OrderNoteHistoryDto> Notes { get; set; } = new();
 
+        [JsonPropertyName("inspection_techs")]
+        public List<OrderInspectionTechsDto> InspectionTechs { get; set; } = new();
+
         [JsonPropertyName("old_order_id")]
         public long? OldOrderId { get; set; }
     }
@@ -152,6 +155,14 @@ namespace CMS.Application.DTOs
         public string Notes { get; set; } = string.Empty;
     }
 
+    public class OrderInspectionTechsDto
+    {
+        [JsonPropertyName("tech_id")]
+        public long TechId { get; set; }
+
+        [JsonPropertyName("tech_name")]
+        public string TechName { get; set; }
+    }
     public class OrderCancelDto
     {
         [JsonPropertyName("order_id")]
