@@ -495,7 +495,7 @@ public class OrderService : IOrderService
             Category = dto.Shipping ? OrderCategory.شحن : (dto.OldOrderId != null ? OrderCategory.صيانة : (dto.InspectionTechs.Count > 0 ? OrderCategory.معاينة : OrderCategory.تركيب)),
             CustomerId = dto.CustomerId,
             CityId = dto.CityId,
-            LineId = lineId,
+            //LineId = lineId,
             LocationNotes = dto.LocationNotes,
             SellerId = dto.SellerId,
             AuditorId = dto.AuditorId,
@@ -518,6 +518,10 @@ public class OrderService : IOrderService
                 CreatedBy = dto.CreatedBy ?? "System"
             }).ToList()
         };
+        if(lineId != 0)
+        {
+            order.LineId = lineId;
+        }
 
 
         var strategy = _dbContext.Database.CreateExecutionStrategy();
@@ -546,29 +550,32 @@ public class OrderService : IOrderService
         #endregion
 
         #region Tech
-        var techAdded = await _techService.CreateAsync(new OrderTechHistoryDto
+        if(techId != 0)
         {
-            OrderId = order.Id,
-            TechId = techId,
-            Status = TechStatus.current,
-            TechType = OrderTechType.فني,
-            AuditorId = dto.AuditorId,
-            CreatedBy = dto.CreatedBy ?? "System"
-        }, true);
-        if(techAdded != null)
-        {
-            _logger.LogInformation("Tech history created for Order Id {OrderId} with Tech Id {TechId}", order.Id, techId);
-            //await _noteService.CreateAsync(new OrderNoteHistoryDto
-            //{
-            //    OrderId = order.Id,
-            //    Notes = techNote.Replace("#OrderId", order.Id.ToString()),
-            //    CreatedBy = dto.CreatedBy ?? "System",
-            //    AuditorId = dto.AuditorId
-            //});
+            var techAdded = await _techService.CreateAsync(new OrderTechHistoryDto
+            {
+                OrderId = order.Id,
+                TechId = techId,
+                Status = TechStatus.current,
+                TechType = OrderTechType.فني,
+                AuditorId = dto.AuditorId,
+                CreatedBy = dto.CreatedBy ?? "System"
+            }, true);
+            if(techAdded != null)
+            {
+                _logger.LogInformation("Tech history created for Order Id {OrderId} with Tech Id {TechId}", order.Id, techId);
+                //await _noteService.CreateAsync(new OrderNoteHistoryDto
+                //{
+                //    OrderId = order.Id,
+                //    Notes = techNote.Replace("#OrderId", order.Id.ToString()),
+                //    CreatedBy = dto.CreatedBy ?? "System",
+                //    AuditorId = dto.AuditorId
+                //});
 
-            order.Status = OrderStatus.قيد_التنفيذ;
-            await _dbContext.SaveChangesAsync();
-            _notifier.OrderStatusChanged(order.Id, OrderStatus.جديد, OrderStatus.قيد_التنفيذ);
+                order.Status = OrderStatus.قيد_التنفيذ;
+                await _dbContext.SaveChangesAsync();
+                _notifier.OrderStatusChanged(order.Id, OrderStatus.جديد, OrderStatus.قيد_التنفيذ);
+            }
         }
         #endregion
 

@@ -79,7 +79,7 @@ namespace CMS.Infrastructure.Auditing
             context.ChangeTracker.DetectChanges();
 
             var now = DateTime.UtcNow;
-            var user = _currentUser.UserId ?? "system";
+            var user = _currentUser.UserName ?? "system";
 
             foreach (var entry in context.ChangeTracker.Entries<IAuditable>())
             {

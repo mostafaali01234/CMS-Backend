@@ -80,4 +80,13 @@ public class ReportController : ApiControllerBase
     [HttpGet("maintenance/export")]
     public async Task<IActionResult> ExportMaintenance([FromQuery] ReportDateFilterDto f) =>
         ToFile(await _service.ExportMaintenanceAsync(f));
+
+    // ---- 12: GET api/report/audit-log?dateFrom=&dateTo=&employeeId=&operation=Add|Update|Delete   (dates = day the change was made)
+    [HttpGet("audit-log")]
+    public async Task<IActionResult> AuditLog([FromQuery] AuditLogFilterDto f) =>
+        ToActionResult(await _service.GetAuditLogAsync(f));
+
+    [HttpGet("audit-log/export")]
+    public async Task<IActionResult> ExportAuditLog([FromQuery] AuditLogFilterDto f) =>
+        ToFile(await _service.ExportAuditLogAsync(f));
 }

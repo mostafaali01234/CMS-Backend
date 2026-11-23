@@ -7,6 +7,7 @@ namespace CMS.Application.Interfaces.Configuration;
 
 public interface IAppDbContext
 {
+    DbSet<ApiDataChangeLog> ApiDataChangeLog { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     // HR
     DbSet<Department> Department { get; }

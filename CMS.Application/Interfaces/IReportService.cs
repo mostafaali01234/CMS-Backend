@@ -29,4 +29,8 @@ public interface IReportService
     // 11 - maintenance orders created within 30 days of their original order, per tech
     Task<ServiceResult<MaintenanceReportDto>> GetMaintenanceAsync(ReportDateFilterDto f);
     Task<ExportResult> ExportMaintenanceAsync(ReportDateFilterDto f);
+
+    // 12 - audit log (add / update / delete) by user and date range
+    Task<ServiceResult<PagedResult<AuditLogRowDto, AuditLogSummaryDto>>> GetAuditLogAsync(AuditLogFilterDto f);
+    Task<ExportResult> ExportAuditLogAsync(AuditLogFilterDto f);
 }

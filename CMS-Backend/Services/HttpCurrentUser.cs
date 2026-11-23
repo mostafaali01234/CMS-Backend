@@ -16,7 +16,8 @@ public class HttpCurrentUser : ICurrentUser
         ?? Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
-    public string? UserName => Principal?.Identity?.Name;
+    public string? UserName => Principal?.Identity?.Name ?? Principal?.FindFirstValue(JwtRegisteredClaimNames.Name);
+    //public string? UserName => Principal?.Identity?.Name;
 
     public string? CorrelationId =>
         _accessor.HttpContext?.Items["CorrelationId"]?.ToString();

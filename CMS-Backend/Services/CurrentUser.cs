@@ -1,4 +1,5 @@
 ﻿using CMS.Application.Interfaces.Configuration;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace CMS.Api.Services
@@ -8,7 +9,8 @@ namespace CMS.Api.Services
         public string? UserId =>
             accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        public string? UserName => throw new NotImplementedException();
+        public string? UserName => accessor.HttpContext?.User.FindFirstValue(JwtRegisteredClaimNames.Name);
+        //public string? UserName => throw new NotImplementedException();
 
         public string? CorrelationId => throw new NotImplementedException();
 
