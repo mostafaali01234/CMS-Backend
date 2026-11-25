@@ -1,5 +1,4 @@
 ﻿// Services/BalanceService.cs
-// Testing Docker cache
 using CMS.Application.DTOs;
 using CMS.Application.DTOs.Responses;
 using CMS.Application.Interfaces;
