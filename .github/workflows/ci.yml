@@ -28,6 +28,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
+
       - name: Restore dependencies
         run: dotnet restore CMS-Backend.sln
 
@@ -56,3 +57,5 @@ jobs:
           tags: |
             ghcr.io/mostafaali01234/cms-backend:latest
             ghcr.io/mostafaali01234/cms-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
