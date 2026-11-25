@@ -5,12 +5,10 @@ on:
   push:
     branches:
       - master
-      - develop
 
   pull_request:
     branches:
       - master
-      - develop
 
 jobs:
   build:
@@ -18,24 +16,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download repository code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Install .NET SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      # 3. Restore NuGet packages
       - name: Restore dependencies
         run: dotnet restore CMS-Backend.sln
 
-      # 4. Build solution
       - name: Build solution
         run: dotnet build CMS-Backend.sln --configuration Release --no-restore
 
-      # 5. Run tests
       - name: Run tests
         run: dotnet test CMS-Backend.sln --configuration Release --no-build
+
+      - name: Build Docker image
+        run: docker build -t cms-api:${{ github.sha }} .
