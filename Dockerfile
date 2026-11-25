@@ -20,7 +20,7 @@ COPY . .
 
 # Publish API
 # Restore dependencies again after copying the full source
-RUN dotnet restore CMS-Backend/CMS.Api.csproj --force --no-cache
+# RUN dotnet restore CMS-Backend/CMS.Api.csproj --force --no-cache
 
 # Publish API
 RUN dotnet publish CMS-Backend/CMS.Api.csproj \
