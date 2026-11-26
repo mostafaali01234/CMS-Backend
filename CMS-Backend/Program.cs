@@ -221,9 +221,18 @@ builder.Services.AddApiVersioning(opt =>
     opt.DefaultApiVersion = Microsoft.AspNetCore.Mvc.ApiVersion.Default; // new ApiVersion(1, 0); 
 });
 
-
+builder.Services
+    .AddHealthChecks()
+    .AddSqlServer(
+        connectionString: builder.Configuration.GetConnectionString("DefaultConnection")!,
+        name: "sqlserver")
+    .AddRedis(
+        redisConnectionString: builder.Configuration.GetConnectionString("Redis")!,
+        name: "redis");
 
 var app = builder.Build();
+
+app.MapHealthChecks("/health");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
